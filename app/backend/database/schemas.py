@@ -26,3 +26,16 @@ class UserCreate(BaseModel):
             raise ValueError("Passwords don't match!")
         return self
 
+class CategoryCreate(BaseModel):
+    category: str
+    emoji: str
+
+class CategoryUpdate(BaseModel):
+    category: Optional[str] = None
+    emoji: Optional[str] = None
+
+    @model_validator(mode="after")
+    def validate_null(self):
+        if self.category is None and self.emoji is None:
+            raise ValueError("Both fields can not be empty")
+        return self
