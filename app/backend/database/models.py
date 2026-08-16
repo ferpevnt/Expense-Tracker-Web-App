@@ -22,6 +22,7 @@ class User(Base):
     )
 
     transactions = relationship("Transaction", back_populates="user", cascade="all, delete-orphan")
+    categories = relationship("Category", cascade="all, delete-orphan")
 
 class Transaction(Base):
     __tablename__ = "transactions"
@@ -63,3 +64,4 @@ class Category(Base):
     )
 
     category_transactions = relationship("Transaction", back_populates="category")
+    
