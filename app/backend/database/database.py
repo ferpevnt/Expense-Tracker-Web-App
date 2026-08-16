@@ -1,10 +1,11 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
-from config.config import settings
-
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent.parent))
+from config.config  import settings
 
 SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL
-
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,

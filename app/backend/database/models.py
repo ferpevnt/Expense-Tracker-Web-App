@@ -1,5 +1,5 @@
 from database.database import Base
-from sqlalchemy import Column, Integer, String, Array, TIMESTAMP, text, ForeignKey
+from sqlalchemy import Column, Integer, String, ARRAY, TIMESTAMP, text, ForeignKey
 from sqlalchemy.orm import relationship
 
 class User(Base):
@@ -36,11 +36,15 @@ class Transaction(Base):
         String, nullable=True,
     )
     category_id = Column(
-            Integer, ForeignKey("categories.id", ondelete="SET NULL", index=True, nullable=True,)
+            Integer, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     
     user = relationship("User", back_populates="transactions")
     category = relationship("Category", back_populates="category_transactions")
+
 
 class Category(Base):
     __tablename__ = "categories"
@@ -55,7 +59,7 @@ class Category(Base):
         String, nullable=False
     )
     user_id = Column(
-        Integer, ForeignKey("users.id", ondelete="CASCADE", index=True, nullable=False)
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
     )
 
     category_transactions = relationship("Transaction", back_populates="category")
