@@ -46,7 +46,6 @@ class Transaction(Base):
     user = relationship("User", back_populates="transactions")
     category = relationship("Category", back_populates="category_transactions")
 
-
 class Category(Base):
     __tablename__ = "categories"
 
@@ -58,6 +57,9 @@ class Category(Base):
     )
     emoji = Column(
         String, nullable=False
+    )
+    created_date = Column(
+        TIMESTAMP(timezone=True), nullable=False, server_default=text("now()")
     )
     user_id = Column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
