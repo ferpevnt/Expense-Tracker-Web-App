@@ -39,3 +39,14 @@ class CategoryUpdate(BaseModel):
         if self.category is None and self.emoji is None:
             raise ValueError("Both fields can not be empty")
         return self
+
+class Category(BaseModel):
+    id: int
+    category: str
+    emoji: str
+    transaction_count: int
+
+class CategoryGraph(BaseModel):
+    id: int
+    emoji: str
+    transaction_count: int
