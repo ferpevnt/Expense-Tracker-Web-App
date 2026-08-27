@@ -6,9 +6,10 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 from security import auth_token
 from sqlalchemy import join, outerjoin, func, text
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
+
 
 router = APIRouter(prefix="/categories", tags=["Categories"])
 
@@ -49,7 +50,7 @@ def CategoryCreate(category_data: schemas.CategoryCreate, user: models.User=Depe
         "emoji": new_category.emoji}
 
 @router.put("/category/{id}", status_code=200)
-def CategoryUpdate(id: int,category_data: schemas.CategoryUpdate, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
+def CategoryUpdate(id: int, category_data: schemas.CategoryUpdate, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
     
     category = find_category(id, user.id, db)
 
@@ -70,6 +71,7 @@ def CategoryUpdate(id: int,category_data: schemas.CategoryUpdate, user: models.U
     db.refresh(category)
 
     return {
+        "id": category.id,
         "category": category.category,
         "emoji": category.emoji}
 
@@ -82,7 +84,7 @@ def CategoryDelete(id: int, user: models.User=Depends(auth_token.get_current_use
     db.commit()
     return
 
-@router.get("/filtered", status_code=200)
+@router.get("/filtered", status_code=200, response_model=List[schemas.Category])
 def CategoriesLoad(search: Optional[str] = None, sort: Optional[str] = None, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
 
     query = db.query(
@@ -123,9 +125,11 @@ def CategoriesLoad(search: Optional[str] = None, sort: Optional[str] = None, use
                 detail="Wrong filter"
             )
 
-    return categories_filtered.all()
+    categories_filtered = categories_filtered.all()
 
-@router.get("/graph", status_code=200)
+    return categories_filtered
+
+@router.get("/graph", status_code=200, response_model=List[schemas.CategoryGraph])
 def GraphData(filtering: Optional[str] = None, user: models.User = Depends(auth_token.get_current_user),db: Session=Depends(database.get_db)):
 
     categories = db.query(
@@ -135,6 +139,10 @@ def GraphData(filtering: Optional[str] = None, user: models.User = Depends(auth_
         models.Category.created_date
         ).filter(models.Category.user_id == user.id)
         
+    categories = categories.outerjoin(
+        models.Transaction,
+        models.Transaction.category_id == models.Category.id).group_by(models.Category.id)
+
     if filtering is not None:
         if filtering == "today":
             categories = categories.filter(func.date(models.Category.created_date) == datetime.today().date())
@@ -156,6 +164,6 @@ def GraphData(filtering: Optional[str] = None, user: models.User = Depends(auth_
                 detail="Wrong filter"
             )
 
-    categories = categories.group_by(models.Category.id)
+    categories = categories.group_by(models.Category.id).all()
 
-    return categories.all()
+    return categories

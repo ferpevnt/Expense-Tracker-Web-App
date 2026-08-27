@@ -1,10 +1,10 @@
-
 from fastapi.testclient import TestClient
 import sys
 from pathlib import Path
 import time
 sys.path.append(str(Path(__file__).parent.parent))
 from main import app
+from wordfreq import random_words
 
 client = TestClient(app)
 
@@ -51,3 +51,47 @@ def test_login():
     assert data["id"] is not None
     assert data["name"] == "Test User"
     assert data["email"] == unique_email
+
+def get_token():
+
+    unique_email = f"test_{int(time.time())}@example.com"
+    register_data = {
+        "name": "Test User",
+        "email": unique_email,
+        "password": "Vava12345!",
+        "confirm_password": "Vava12345!"
+    }
+    client.post("/auth/signup", json=register_data)
+    
+    login_data = {
+        "email": unique_email,
+        "password": "Vava12345!"
+    }
+    response = client.post("/auth/login", json=login_data)
+
+    data = response.json()
+    token = {
+        "token": data["access_token"],
+        "token_type": data["token_type"]}
+
+    return token
+
+def test_create_category():
+
+    token = get_token()
+    headers = {
+        "Authorization": f"{token['token_type']} {token['token']}"
+    }
+
+    word = random_words("en", wordlist="best")
+    category_data = {
+        "category": word,
+        "emoji": "emoji"
+    }
+
+    response = client.post("/categories/category", json=category_data, headers=headers)
+    assert response.status_code == 201
+    
+    data = response.json()
+    assert data["category"] == word
+    assert data["id"] is not None
