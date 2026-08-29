@@ -224,8 +224,30 @@ def test_categories_graph_wrong_filter():
     assert data["detail"] == "Wrong filter"
 
 def test_categories_graph_no_filter():
+
     headers = support_login()
+    
     response = client.get("/categories/graph", headers=headers)
     assert response.status_code == 200
+    
+    data = response.json()
+    assert isinstance(data, list)
+
+def test_categories():
+
+    headers = support_login()
+
+    for i in range(5):
+            word = random_words("en", wordlist="best")
+
+            category_data = {
+                "category": word,
+                "emoji": "emoji"
+            }
+            client.post("/categories/category", json=category_data, headers=headers)
+
+    response = client.get("/categories", headers=headers)
+    assert response.status_code == 200
+
     data = response.json()
     assert isinstance(data, list)

@@ -167,3 +167,16 @@ def GraphData(filtering: Optional[str] = None, user: models.User = Depends(auth_
     categories = categories.group_by(models.Category.id).all()
 
     return categories
+
+@router.get("/", status_code=200,response_model=List[schemas.Categories])
+def Categories(user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
+
+    categories = db.query(
+        models.Category.id,
+        models.Category.category,
+        models.Category.emoji
+    ).filter(
+        models.Category.user_id == user.id
+    ).all()
+
+    return categories
