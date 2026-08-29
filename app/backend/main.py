@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import auth, categories
+from routers import auth, categories, transactions
 from config.config import settings
 from database.database import engine, Base
 
@@ -18,3 +18,4 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(categories.router)
+app.include_router(transactions.router)

@@ -1,7 +1,7 @@
 from pydantic import BaseModel, ConfigDict, model_validator, ValidationError, EmailStr
 from typing import Optional
 from datetime import datetime
-from typing import List
+from typing import List, Union
 
 class Token(BaseModel):
     access_token: str
@@ -50,3 +50,38 @@ class CategoryGraph(BaseModel):
     id: int
     emoji: str
     transaction_count: int
+
+class Categories(BaseModel):
+    id: int
+    category: str
+    emoji: str
+
+class TransactionCreate(BaseModel):
+    title: str
+    description: Optional[str]
+    summ: Union[int, float]
+    transaction_type: bool
+    category_id: Optional[int]
+
+class TransactionUpdate(BaseModel):
+    title: Optional[str]
+    description: Optional[str]
+    summ: Optional[Union[int, float]]
+    transaction_type: Optional[bool]
+    category: Optional[int]
+
+    @model_validator(mode='after')
+    def validate_null(self):
+        if all(value is None for value in self.model_dump().values()):
+            raise ValueError("At least one field should be not empty")
+        return self
+
+class TransactionOut(BaseModel):
+    id: int
+    title: str
+    description: Union[str, None]
+    summ: Union[int, float]
+    transaction_type: bool
+    created_date: datetime
+    category: Union[str, None] 
+    emoji: Union[str, None]
