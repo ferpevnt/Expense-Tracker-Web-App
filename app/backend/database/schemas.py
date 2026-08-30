@@ -83,5 +83,6 @@ class TransactionOut(BaseModel):
     summ: Union[int, float]
     transaction_type: bool
     created_date: datetime
+    category_id: Union[int, None]
     category: Union[str, None] 
     emoji: Union[str, None]
