@@ -75,23 +75,3 @@ def get_token():
         "token_type": data["token_type"]}
 
     return token
-
-def test_create_category():
-
-    token = get_token()
-    headers = {
-        "Authorization": f"{token['token_type']} {token['token']}"
-    }
-
-    word = random_words("en", wordlist="best")
-    category_data = {
-        "category": word,
-        "emoji": "emoji"
-    }
-
-    response = client.post("/categories/category", json=category_data, headers=headers)
-    assert response.status_code == 201
-    
-    data = response.json()
-    assert data["category"] == word
-    assert data["id"] is not None

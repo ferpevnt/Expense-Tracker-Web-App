@@ -3,6 +3,7 @@ from typing import Optional
 from datetime import datetime
 from typing import List, Union
 
+# ===== AUTHORIZATION =====
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -26,6 +27,7 @@ class UserCreate(BaseModel):
             raise ValueError("Passwords don't match!")
         return self
 
+# ===== CATEGORIES =====
 class CategoryCreate(BaseModel):
     category: str
     emoji: str
@@ -56,6 +58,7 @@ class Categories(BaseModel):
     category: str
     emoji: str
 
+# ===== TRANSACTIONS =====
 class TransactionCreate(BaseModel):
     title: str
     description: Optional[str]

@@ -39,6 +39,7 @@ def TransactionCreate(transaction_data: schemas.TransactionCreate, user: models.
     db.commit()
     db.refresh(new_transaction)
 
+    #transaction with added category id, name, emoji
     transaction = db.query(
         models.Transaction.id,
         models.Transaction.title,
@@ -46,6 +47,7 @@ def TransactionCreate(transaction_data: schemas.TransactionCreate, user: models.
         models.Transaction.summ,
         models.Transaction.transaction_type,
         models.Transaction.created_date,
+        models.Transaction.category_id,
         models.Category.category,
         models.Category.emoji
     ).outerjoin(
@@ -60,7 +62,8 @@ def TransactionCreate(transaction_data: schemas.TransactionCreate, user: models.
 def TransactionUpdate(id: int, transaction_data: schemas.TransactionUpdate, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
     
     transaction = find_transaction(id, user.id, db)
-
+    
+    #optional update(can be only 1 field)(422 error if no values)
     if transaction_data.title is not None:
         transaction.title = transaction_data.title
     
@@ -81,6 +84,7 @@ def TransactionUpdate(id: int, transaction_data: schemas.TransactionUpdate, user
     
     db.commit()
 
+    #transaction with added category id, name, emoji
     transaction = db.query(
         models.Transaction.id,
         models.Transaction.title,
@@ -126,11 +130,13 @@ def TransactionsLoad(page: int,
                     user: models.User = Depends(auth_token.get_current_user),
                     db: Session=Depends(database.get_db)):
     
+    
     if page < 1:
         raise HTTPException(
             status_code=400,
             detail="Page must be greater than 0")
 
+    #user transactions + categories(id, name, emoji)
     transactions = db.query(
         models.Transaction.id,
         models.Transaction.title,
@@ -147,12 +153,14 @@ def TransactionsLoad(page: int,
         models.Transaction.user_id == user.id
     )
 
+    #optional search filter
     if search is not None:
         transactions = transactions.filter(
             models.Transaction.title.ilike(f"%{search}%") |
             models.Transaction.description.ilike(f"%{search}%")
         )
     
+    #optional type(expense, income) filter
     if t_type is not None:
         if t_type == True:
             transactions = transactions.filter(
@@ -163,11 +171,13 @@ def TransactionsLoad(page: int,
                 models.Transaction.transaction_type == False
             )
     
+    #optional category filter
     if category is not None:
         transactions = transactions.filter(
             models.Transaction.category_id == category
         )
 
+    #optional min&max, min|max sum filters
     if min_sum is not None and max_sum is not None:
         transactions = transactions.filter(
             models.Transaction.summ >= min_sum,
@@ -182,6 +192,7 @@ def TransactionsLoad(page: int,
             models.Transaction.summ <= max_sum
         )
         
+    #optional start&end, start|end date filters    
     if start is not None and end is not None:
         transactions = transactions.filter(
             func.date(models.Transaction.created_date) >= start,
@@ -196,6 +207,7 @@ def TransactionsLoad(page: int,
             func.date(models.Transaction.created_date) <= end
         )
     
+    #optional sort(400 error if wrong sort value)
     if sort is not None:
         if sort == "date_created_new":
             transactions = transactions.order_by(
@@ -230,9 +242,9 @@ def TransactionsLoad(page: int,
             models.Transaction.created_date.desc()
         )
 
+    #offset count
     skip = (page - 1) * 15
 
     transactions = transactions.offset(skip).limit(15).all()
 
     return transactions
-

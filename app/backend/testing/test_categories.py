@@ -8,6 +8,7 @@ from wordfreq import random_words
 
 client = TestClient(app)
 
+#login function for tests
 def support_login():
     
     unique_email = f"test_{int(time.time())}@example.com"
@@ -36,6 +37,7 @@ def support_login():
 
     return headers
 
+# ===== CREATE TEST =====
 def test_create_category():
 
     headers = support_login()

@@ -84,9 +84,11 @@ def CategoryDelete(id: int, user: models.User=Depends(auth_token.get_current_use
     db.commit()
     return
 
+# load transactions list on the page
 @router.get("/filtered", status_code=200, response_model=List[schemas.Category])
 def CategoriesLoad(search: Optional[str] = None, sort: Optional[str] = None, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
 
+    #user categories
     query = db.query(
         models.Category.id,
         models.Category.category,
@@ -96,6 +98,7 @@ def CategoriesLoad(search: Optional[str] = None, sort: Optional[str] = None, use
 
     categories_filtered = query
 
+    #search filter on user categories
     if search is not None:
         categories_filtered = categories_filtered.filter(models.Category.category.ilike(f"%{search}%"))
 
@@ -106,6 +109,7 @@ def CategoriesLoad(search: Optional[str] = None, sort: Optional[str] = None, use
         models.Category.id
     )
 
+    #sorting by specific values(400 error if wrong value)
     if sort is not None:
         if sort == "A-Z":
             categories_filtered = categories_filtered.order_by(models.Category.category.asc())
@@ -129,9 +133,11 @@ def CategoriesLoad(search: Optional[str] = None, sort: Optional[str] = None, use
 
     return categories_filtered
 
+#data for graph
 @router.get("/graph", status_code=200, response_model=List[schemas.CategoryGraph])
 def GraphData(filtering: Optional[str] = None, user: models.User = Depends(auth_token.get_current_user),db: Session=Depends(database.get_db)):
 
+    #user categories + transaction count for each category
     categories = db.query(
         models.Category.id,
         models.Category.emoji,
@@ -143,6 +149,7 @@ def GraphData(filtering: Optional[str] = None, user: models.User = Depends(auth_
         models.Transaction,
         models.Transaction.category_id == models.Category.id).group_by(models.Category.id)
 
+    #filtering by specific values(400 error if wrong value)
     if filtering is not None:
         if filtering == "today":
             categories = categories.filter(func.date(models.Category.created_date) == datetime.today().date())
@@ -168,6 +175,7 @@ def GraphData(filtering: Optional[str] = None, user: models.User = Depends(auth_
 
     return categories
 
+# load categories for select menu when creating transaction
 @router.get("/", status_code=200,response_model=List[schemas.Categories])
 def Categories(user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
 
