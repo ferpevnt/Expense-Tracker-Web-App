@@ -88,6 +88,7 @@ def TransactionUpdate(id: int, transaction_data: schemas.TransactionUpdate, user
         models.Transaction.summ,
         models.Transaction.transaction_type,
         models.Transaction.created_date,
+        models.Transaction.category_id,
         models.Category.category,
         models.Category.emoji
     ).outerjoin(
@@ -106,4 +107,132 @@ def TransactionDelete(id: int, user: models.User=Depends(auth_token.get_current_
     db.delete(transaction)
     db.commit()
     return
+
+@router.get("/filtered", status_code=200, response_model=List[schemas.TransactionOut])
+def TransactionsLoad(page: int,
+                    
+                    search: Optional[str],
+                    t_type: Optional[bool] = None,
+                    category: Optional[int] = None,
+                    
+                    min_sum: Optional[int] = None,
+                    max_sum: Optional[int] = None,
+
+                    start: Optional[date] = None,
+                    end: Optional[date] = None,
+
+                    sort: Optional[str] = None,
+
+                    user: models.User = Depends(auth_token.get_current_user),
+                    db: Session=Depends(database.get_db)):
+    
+    if page < 1:
+        raise HTTPException(
+            status_code=400,
+            detail="Page must be greater than 0")
+
+    transactions = db.query(
+        models.Transaction.id,
+        models.Transaction.title,
+        models.Transaction.description,
+        models.Transaction.summ,
+        models.Transaction.transaction_type,
+        models.Transaction.created_date,
+        models.Transaction.category_id,
+        models.Category.category,
+        models.Category.emoji
+    ).outerjoin(
+        models.Category, models.Category.id == models.Transaction.category_id
+    ).filter(
+        models.Transaction.user_id == user.id
+    )
+
+    if search is not None:
+        transactions = transactions.filter(
+            models.Transaction.title.ilike(f"%{search}%") |
+            models.Transaction.description.ilike(f"%{search}%")
+        )
+    
+    if t_type is not None:
+        if t_type == True:
+            transactions = transactions.filter(
+                models.Transaction.transaction_type == True
+            )
+        elif t_type == False:
+            transactions = transactions.filter(
+                models.Transaction.transaction_type == False
+            )
+    
+    if category is not None:
+        transactions = transactions.filter(
+            models.Transaction.category_id == category
+        )
+
+    if min_sum is not None and max_sum is not None:
+        transactions = transactions.filter(
+            models.Transaction.summ >= min_sum,
+            models.Transaction.summ <= max_sum
+        )
+    if min_sum is not None and max_sum is None:
+        transactions = transactions.filter(
+            models.Transaction.summ >= min_sum
+        )
+    if max_sum is not None and min_sum is None:
+        transactions = transactions.filter(
+            models.Transaction.summ <= max_sum
+        )
+        
+    if start is not None and end is not None:
+        transactions = transactions.filter(
+            func.date(models.Transaction.created_date) >= start,
+            func.date(models.Transaction.created_date) <= end
+        )
+    if start is not None and end is None:
+        transactions = transactions.filter(
+            func.date(models.Transaction.created_date) >= start
+        )
+    if end is not None and start is None:
+        transactions = transactions.filter(
+            func.date(models.Transaction.created_date) <= end
+        )
+    
+    if sort is not None:
+        if sort == "date_created_new":
+            transactions = transactions.order_by(
+                models.Transaction.created_date.desc()
+            )
+        elif sort == "date_created_old":
+            transactions = transactions.order_by(
+                models.Transaction.created_date.asc()
+            )
+        elif sort == "amount_high":
+            transactions = transactions.order_by(
+                models.Transaction.summ.desc()
+            )
+        elif sort == "amount_low":
+            transactions = transactions.order_by(
+                models.Transaction.summ.asc()
+            )
+        elif sort == "A-Z":
+            transactions = transactions.order_by(
+                models.Transaction.title.asc()
+            )
+        elif sort == "Z-A":
+            transactions = transactions.order_by(
+                models.Transaction.title.desc()
+            )
+        else:
+            raise HTTPException(status_code=400,
+            detail="Wrong sorting filter")
+
+    else:
+        transactions = transactions.order_by(
+            models.Transaction.created_date.desc()
+        )
+
+    skip = (page - 1) * 15
+
+    transactions = transactions.offset(skip).limit(15).all()
+
+    return transactions
 

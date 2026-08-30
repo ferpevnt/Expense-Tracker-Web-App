@@ -1,5 +1,5 @@
 from database.database import Base
-from sqlalchemy import Column, Integer, String, Boolean, ARRAY, TIMESTAMP, text, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, ARRAY, TIMESTAMP, text, ForeignKey, Numeric
 from sqlalchemy.orm import relationship
 
 class User(Base):
@@ -37,7 +37,7 @@ class Transaction(Base):
         String, nullable=True,
     )
     summ = Column(
-        Integer, nullable=False,
+        Numeric(10, 2), nullable=False,
     )
     transaction_type = Column(
         Boolean, nullable=False #True - income, False - expense
