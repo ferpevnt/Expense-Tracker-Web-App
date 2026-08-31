@@ -7,14 +7,14 @@ sys.path.append(str(Path(__file__).parent.parent))
 from security import auth_token
 from sqlalchemy import join, outerjoin, func, text
 from typing import Optional, List, Union
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from dateutil.relativedelta import relativedelta
 
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
 
 def find_transaction(id, user_id, db):
     
-    transaction = db.query(models.Transaction).filter(models.Transaction.user_id == user.id, models.Transaction.id == id).first()
+    transaction = db.query(models.Transaction).filter(models.Transaction.user_id == user_id, models.Transaction.id == id).first()
 
     if transaction == None:
         raise HTTPException(
@@ -53,7 +53,8 @@ def TransactionCreate(transaction_data: schemas.TransactionCreate, user: models.
     ).outerjoin(
         models.Category, models.Category.id == models.Transaction.category_id
     ).filter(
-        models.Transaction.id == new_transaction.id
+        models.Transaction.id == new_transaction.id,
+        models.Transaction.user_id == user.id
     ).first()
 
     return transaction
@@ -61,6 +62,7 @@ def TransactionCreate(transaction_data: schemas.TransactionCreate, user: models.
 @router.put("/transaction/{id}", status_code=200, response_model=schemas.TransactionOut)
 def TransactionUpdate(id: int, transaction_data: schemas.TransactionUpdate, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
     
+
     transaction = find_transaction(id, user.id, db)
     
     #optional update(can be only 1 field)(422 error if no values)
@@ -112,10 +114,13 @@ def TransactionDelete(id: int, user: models.User=Depends(auth_token.get_current_
     db.commit()
     return
 
-@router.get("/filtered", status_code=200, response_model=List[schemas.TransactionOut])
-def TransactionsLoad(page: int,
+@router.get("/filtered", status_code=200, response_model=schemas.TransactionsOut)
+def TransactionsLoad(
+                    search: Optional[str] = None,
+
+                    page: int = 1,
                     
-                    search: Optional[str],
+                    
                     t_type: Optional[bool] = None,
                     category: Optional[int] = None,
                     
@@ -245,6 +250,15 @@ def TransactionsLoad(page: int,
     #offset count
     skip = (page - 1) * 15
 
+    total = transactions.count()
+
     transactions = transactions.offset(skip).limit(15).all()
 
-    return transactions
+    pages = (total + 15 - 1) // 15
+
+    return {
+        "items": transactions,
+        "total": total,
+        "page": page,
+        "pages": pages
+    }
