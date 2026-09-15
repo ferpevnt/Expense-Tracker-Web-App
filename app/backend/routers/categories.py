@@ -10,7 +10,6 @@ from typing import Optional, List
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 
-
 router = APIRouter(prefix="/categories", tags=["Categories"])
 
 def find_category(id: int, user_id: int, db: Session):

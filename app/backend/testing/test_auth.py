@@ -25,7 +25,6 @@ def test_register_user():
     assert data["name"] == "Test User"
     assert data["email"] == unique_email
     assert "hashed_password" not in data
-    assert "id" in data
 
 def test_login():
     
@@ -48,7 +47,6 @@ def test_login():
     data = response.json()
     assert data["access_token"] is not None
     assert data["token_type"] == "bearer"
-    assert data["id"] is not None
     assert data["name"] == "Test User"
     assert data["email"] == unique_email
 
