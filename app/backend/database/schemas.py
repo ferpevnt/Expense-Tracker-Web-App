@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict, model_validator, ValidationError, EmailStr, Field
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, date
 from typing import List, Union
 
 # ===== AUTHORIZATION =====
@@ -61,17 +61,17 @@ class Categories(BaseModel):
 # ===== TRANSACTIONS =====
 class TransactionCreate(BaseModel):
     title: str
-    description: Optional[str]
+    description: Optional[str] = None
     summ: Union[int, float]
     transaction_type: bool
-    category_id: Optional[int]
+    category_id: Optional[int] = None
 
 class TransactionUpdate(BaseModel):
-    title: Optional[str]
-    description: Optional[str]
-    summ: Optional[Union[int, float]]
-    transaction_type: Optional[bool]
-    category: Optional[int]
+    title: Optional[str] = None
+    description: Optional[str] = None
+    summ: Optional[Union[int, float]] = None
+    transaction_type: Optional[bool] = None
+    category: Optional[int] = None
 
     @model_validator(mode='after')
     def validate_null(self):
