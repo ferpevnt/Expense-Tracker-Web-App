@@ -21,7 +21,7 @@ def find_user(user_id, db):
     
     return user
 
-@router.get("/", status_code=200, response_model=schemas.NameEmail)
+@router.get("/", status_code=200)
 def NameEmail(username: Optional[bool] = False, email: Optional[bool] = False, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
     
     user_id = user.id
