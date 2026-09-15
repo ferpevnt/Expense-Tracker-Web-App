@@ -7,7 +7,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 from security import auth_token
 from sqlalchemy import join, outerjoin, func, text
 from typing import Optional, List, Union
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from dateutil.relativedelta import relativedelta
 
 router = APIRouter(prefix="/transactions", tags=["Transactions"])

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, model_validator, ValidationError, EmailStr
+from pydantic import BaseModel, ConfigDict, model_validator, ValidationError, EmailStr, Field
 from typing import Optional
 from datetime import datetime
 from typing import List, Union
@@ -18,7 +18,7 @@ class UserLogin(BaseModel):
 class UserCreate(BaseModel):
     name: str
     email: EmailStr
-    password: str
+    password: str = Field(..., min_length=8, max_length=56)
     confirm_password: str
 
     @model_validator(mode="after")
@@ -89,3 +89,17 @@ class TransactionOut(BaseModel):
     category_id: Union[int, None]
     category: Union[str, None] 
     emoji: Union[str, None]
+
+# ===== PROFILE =====
+class NameUpdate(BaseModel):
+    name: str = Field(..., min_length=2, max_length=50)
+
+class PasswordUpdate(BaseModel):
+    password: str 
+    new_password: str = Field(..., min_length=8, max_length=56)
+
+    @model_validator(mode='after')
+    def same_passwords(self):
+        if self.password == self.new_password:
+            raise ValueError("New password should differ from the old one")
+        return self 

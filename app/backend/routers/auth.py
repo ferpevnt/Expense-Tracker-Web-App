@@ -11,7 +11,7 @@ def find_user(email, db):
     return user
 
 @router.post("/auth/login", status_code=200)
-def Login(user: schemas.UserLogin, db: Session=Depends(database.get_db)):
+def UserLogin(user: schemas.UserLogin, db: Session=Depends(database.get_db)):
 
     user_check = find_user(user.email, db)
 
@@ -33,12 +33,11 @@ def Login(user: schemas.UserLogin, db: Session=Depends(database.get_db)):
 
     return {"access_token": access_token,
             "token_type": "bearer",
-            "id": user_check.id,
             "name": user_check.name,
             "email": user_check.email}
 
 @router.post("/auth/signup", status_code=201)
-def Create(user: schemas.UserCreate, db: Session=Depends(database.get_db)):
+def UserCreate(user: schemas.UserCreate, db: Session=Depends(database.get_db)):
 
     existing_user = find_user(user.email, db)
 
@@ -61,7 +60,6 @@ def Create(user: schemas.UserCreate, db: Session=Depends(database.get_db)):
     db.refresh(new_user)
     
     return {
-        "id": new_user.id,
         "name": new_user.name,
         "email": new_user.email
         }
