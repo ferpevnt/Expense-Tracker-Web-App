@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, status, HTTPException
-from sqlalchemy.orm import Session, Float
+from sqlalchemy.orm import Session
 from database import database, schemas, models
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 from security import auth_token, security
-from sqlalchemy import join, outerjoin, func
+from sqlalchemy import join, outerjoin, func, Float
 from typing import Optional, List
 from datetime import datetime, timedelta, date as date_type, timezone
 from dateutil.relativedelta import relativedelta
@@ -150,6 +150,140 @@ def FinancesStatistics(filtering: str, target_date: Optional[str] = None, user: 
         "categories_expense_percent": categories_info,
     }
 
+@router.get("/graphs", status_code=200,response_model=schemas.GraphsData)
+def GraphsData(
+    date_start: date_type,
+    date_end: Optional[date_type] = None,
+    previous_date_start: Optional[date_type] = None,
+    previous_date_end: Optional[date_type] = None,
+    user: models.User=Depends(auth_token.get_current_user),
+    db: Session=Depends(database.get_db)):
+
+    user_id = user.id
+
+    def expenses_days_weekdays(date_start, date_end, user_id, db):
+        if date_end:
+
+            transactions_more_4 = db.query(
+                models.Transaction.title,
+                func.count(models.Transaction.title)
+            ).filter(
+                models.Transaction.user_id == user_id,
+                models.Transaction.created_date >= date_start,
+                models.Transaction.created_date <= date_end,
+                models.Transaction.transaction_type == False
+                ).group_by(
+                models.Transaction.title
+            ).having(
+                func.count(models.Transaction.title) >= 4
+            ).all()
+
+            expenses_days = db.query(
+                models.Transaction.created_date,
+                func.sum(models.Transaction.summ).label("day_expenses")
+            ).filter(
+                models.Transaction.user_id == user_id,
+                models.Transaction.created_date >= date_start,
+                models.Transaction.created_date <= date_end,
+                models.Transaction.transaction_type == False
+            ).group_by(
+                models.Transaction.created_date
+            ).all()
+
+            expenses_week_days = db.query(
+                func.to_char(models.Transaction.created_date, 'Day').label("week_day"),
+                func.sum(models.Transaction.summ).label("weekday_expenses")
+            ).filter(
+                models.Transaction.user_id == user_id,
+                models.Transaction.created_date >= date_start,
+                models.Transaction.created_date <= date_end,
+                models.Transaction.transaction_type == False
+            ).group_by(
+                func.to_char(models.Transaction.created_date, 'Day').label("week_day")
+            ).all()
+
+        else:
+            expenses_days = db.query(
+                models.Transaction.created_date,
+                func.sum(models.Transaction.summ).label("day_expenses")
+            ).filter(
+                models.Transaction.user_id == user_id,
+                models.Transaction.created_date >= date_start,
+                models.Transaction.transaction_type == False
+            ).group_by(
+                models.Transaction.created_date
+            ).all()
+
+            expenses_week_days = db.query(
+                func.to_char(models.Transaction.created_date, 'Day').label("week_day"),
+                func.sum(models.Transaction.summ).label("weekday_expenses")
+            ).filter(
+                models.Transaction.user_id == user_id,
+                models.Transaction.created_date >= date_start,
+                models.Transaction.transaction_type == False
+            ).group_by(
+                func.to_char(models.Transaction.created_date, 'Day').label("week_day")
+            ).all()
+
+            transactions_more_4 = db.query(
+                models.Transaction.title,
+                func.count(models.Transaction.title)
+            ).filter(
+                models.Transaction.user_id == user_id,
+                models.Transaction.created_date >= date_start,
+                models.Transaction.transaction_type == False
+                ).group_by(
+                models.Transaction.title
+            ).having(
+                func.count(models.Transaction.title) >= 4
+            ).all()
+
+        titles_list = [t.title for t in transactions_more_4]
+        repeating_transactions = db.query(
+                models.Transaction.title,
+                models.Transaction.summ,
+                models.Category.category,
+                models.Category.emoji
+            ).outerjoin(
+                models.Category, 
+                models.Category.id == models.Transaction.category_id
+            ).filter(
+                models.Transaction.transaction_type == False,
+                models.Transaction.user_id == user_id,
+                models.Transaction.title.in_(titles_list)
+            ).all()
+
+        return expenses_days, expenses_week_days, repeating_transactions
+
+    expenses_days, expenses_week_days, repeating_transactions = expenses_days_weekdays(date_start, date_end, user_id, db)
+
+    if previous_date_start and previous_date_end:
+        previous_expenses_days, previous_expenses_week_days, previous_repeating_transactions = expenses_days_weekdays(previous_date_start, previous_date_end, user_id, db)
+        
+        return {
+            "current": {
+                "days": expenses_days,
+                "week_days": expenses_week_days,
+                "repeat_transactions": repeating_transactions
+            },
+            "previous": {
+                "days": previous_expenses_days,
+                "week_days": previous_expenses_week_days,
+                "repeat_transactions": previous_repeating_transactions
+            }
+        }
+
+    elif previous_date_start or previous_date_end:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail= "Both fields must be either empty or not")
     
+    return {
+        "current": {
+            "days": expenses_days,
+            "week_days": expenses_week_days,
+            "repeat_transactions": repeating_transactions
+        }
+    }
 
     
