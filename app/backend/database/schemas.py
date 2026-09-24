@@ -103,3 +103,13 @@ class PasswordUpdate(BaseModel):
         if self.password == self.new_password:
             raise ValueError("New password should differ from the old one")
         return self 
+        
+# ===== DASHBOARD =====
+class DashboardTransactionsOut(BaseModel):
+    title: str
+    description: Optional[str] = None
+    summ: Union[int, float]
+    transaction_type: bool
+    created_date: datetime
+    category: Optional[str] = None
+    emoji: Optional[str] = None
