@@ -113,3 +113,34 @@ class DashboardTransactionsOut(BaseModel):
     created_date: datetime
     category: Optional[str] = None
     emoji: Optional[str] = None
+
+class DayExpense(BaseModel):
+    created_date: datetime
+    day_expenses: float
+
+
+class WeekDayExpense(BaseModel):
+    week_day: str
+    weekday_expenses: float
+
+class RepeatingTransaction(BaseModel):
+    title: str
+    summ: float
+    category: Optional[str] = None
+    emoji: Optional[str] = None
+
+class GraphsCurrent(BaseModel):
+    days: List[DayExpense]
+    week_days: List[WeekDayExpense]
+    repeat_transactions: List[RepeatingTransaction]
+
+
+class GraphsPrevious(BaseModel):
+    days: List[DayExpense]
+    week_days: List[WeekDayExpense]
+    repeat_transactions: List[RepeatingTransaction]
+
+
+class GraphsData(BaseModel):
+    current: GraphsCurrent
+    previous: Optional[GraphsPrevious] = None
