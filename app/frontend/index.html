@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Expense Tracker</title>
+    <link rel="stylesheet" href="css/style.css" />
+
+    <!-- 
+        AUTO-GENERATED FRONTEND
+        This frontend was generated with AI assistance.
+        TODO: Rewrite manually in the future for learning purposes.
+    -->
+  </head>
+  <body>
+    <div class="container">
+      <h1>Dashboard</h1>
+      <p class="subtitle">Coming soon...</p>
+      <button onclick="logout()">Log Out</button>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script>
+      if (!isLoggedIn()) {
+        window.location.href = "login.html";
+      }
+
+      function logout() {
+        clearToken();
+        window.location.href = "login.html";
+      }
+    </script>
+  </body>
+</html>
