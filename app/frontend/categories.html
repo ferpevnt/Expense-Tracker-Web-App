@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Categories — Expense Tracker</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/categories.css" />
+
+    <!-- 
+        AUTO-GENERATED FRONTEND
+        This frontend was generated with AI assistance.
+        TODO: Rewrite manually in the future for learning purposes.
+    -->
+  </head>
+  <body>
+    <div class="page-container">
+      <!-- ===== NAVIGATION ===== -->
+      <nav class="navbar">
+        <div class="nav-links">
+          <a href="index.html">Dashboard</a>
+          <a href="transactions.html">Transactions</a>
+          <a href="categories.html" class="active">Categories</a>
+          <a href="profile.html">Profile</a>
+        </div>
+        <div class="user-info">
+          <span>👤 <span id="user-name">User</span></span>
+        </div>
+      </nav>
+
+      <!-- ===== PAGE HEADER ===== -->
+      <div class="page-header">
+        <h2>Categories</h2>
+        <button class="btn btn-primary" id="add-btn">➕ Add Category</button>
+      </div>
+
+      <div id="message" class="message"></div>
+
+      <!-- ===== TOOLBAR ===== -->
+      <div class="toolbar">
+        <input
+          type="text"
+          id="search-input"
+          placeholder="🔍 Search categories..."
+        />
+        <select id="sort-select">
+          <option value="A-Z">A-Z</option>
+          <option value="Z-A">Z-A</option>
+          <option value="date_created_new">Newest first</option>
+          <option value="date_created_old">Oldest first</option>
+          <option value="transaction_count_high">Most used</option>
+          <option value="transaction_count_low">Least used</option>
+        </select>
+      </div>
+
+      <!-- ===== GRID ===== -->
+      <div class="categories-grid" id="categories-grid">
+        <!-- Cards rendered by JS -->
+      </div>
+    </div>
+
+    <!-- ===== MODAL ===== -->
+    <div class="modal-overlay" id="modal-overlay">
+      <div class="modal">
+        <h3 id="modal-title">Add Category</h3>
+        <div id="modal-message" class="message"></div>
+
+        <div class="form-group">
+          <label for="name-input">Name</label>
+          <input
+            type="text"
+            id="name-input"
+            placeholder="e.g. Food"
+            maxlength="50"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="emoji-input">Emoji</label>
+          <input type="text" id="emoji-input" placeholder="🍕" maxlength="4" />
+          <div class="emoji-picker" id="emoji-picker"></div>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn btn-secondary" id="modal-cancel-btn">
+            Cancel
+          </button>
+          <button class="btn btn-primary" id="modal-save-btn">Create</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/categories.js"></script>
+  </body>
+</html>

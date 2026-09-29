@@ -3,8 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Expense Tracker</title>
+    <title>Dashboard — Expense Tracker</title>
     <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/categories.css" />
+    <link rel="stylesheet" href="css/dashboard.css" />
 
     <!-- 
         AUTO-GENERATED FRONTEND
@@ -13,22 +15,144 @@
     -->
   </head>
   <body>
-    <div class="container">
-      <h1>Dashboard</h1>
-      <p class="subtitle">Coming soon...</p>
-      <button onclick="logout()">Log Out</button>
+    <div class="page-container">
+      <!-- ===== NAVIGATION ===== -->
+      <nav class="navbar">
+        <div class="nav-links">
+          <a href="index.html" class="active">Dashboard</a>
+          <a href="transactions.html">Transactions</a>
+          <a href="categories.html">Categories</a>
+          <a href="profile.html">Profile</a>
+        </div>
+        <div class="user-info">
+          <span>👤 <span id="user-name">User</span></span>
+        </div>
+      </nav>
+
+      <!-- ===== PAGE HEADER ===== -->
+      <div class="page-header">
+        <h2>Dashboard</h2>
+        <div class="period-filter">
+          <select id="period-select">
+            <option value="today">Today</option>
+            <option value="yesterday">Yesterday</option>
+            <option value="week" selected>This week</option>
+            <option value="month">This month</option>
+            <option value="custom">Custom date...</option>
+          </select>
+          <input
+            type="date"
+            id="custom-date"
+            class="custom-date-input"
+            style="display: none"
+          />
+        </div>
+      </div>
+
+      <div id="message" class="message"></div>
+
+      <!-- ===== SUMMARY CARDS ===== -->
+      <div class="summary-grid">
+        <div class="summary-card balance">
+          <div class="summary-icon">💰</div>
+          <div class="summary-info">
+            <div class="summary-label">Balance</div>
+            <div class="summary-value" id="total-balance">—</div>
+          </div>
+        </div>
+
+        <div class="summary-card income">
+          <div class="summary-icon">📈</div>
+          <div class="summary-info">
+            <div class="summary-label">Total Income</div>
+            <div class="summary-value" id="total-income">—</div>
+          </div>
+        </div>
+
+        <div class="summary-card expense">
+          <div class="summary-icon">📉</div>
+          <div class="summary-info">
+            <div class="summary-label">Total Expense</div>
+            <div class="summary-value" id="total-expense">—</div>
+          </div>
+        </div>
+
+        <div class="summary-card count">
+          <div class="summary-icon">🧾</div>
+          <div class="summary-info">
+            <div class="summary-label">Transactions</div>
+            <div class="summary-value" id="total-count">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== PERIOD STATS ===== -->
+      <h3 class="section-title">
+        Expenses for the period
+        <span class="period-compare" id="period-compare"></span>
+      </h3>
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-label">Total spent</div>
+          <div class="stat-value" id="period-total">—</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Average</div>
+          <div class="stat-value" id="period-avg">—</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Max</div>
+          <div class="stat-value" id="period-max">—</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Transactions</div>
+          <div class="stat-value" id="period-count">—</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Avg / day</div>
+          <div class="stat-value" id="period-avg-day">—</div>
+        </div>
+      </div>
+
+      <!-- ===== CATEGORIES TOP ===== -->
+      <h3 class="section-title">Top categories</h3>
+      <div class="top-categories" id="top-categories">
+        <!-- rendered by JS -->
+      </div>
+
+      <!-- ===== CHARTS ===== -->
+      <h3 class="section-title">Charts</h3>
+      <div class="charts-grid">
+        <div class="chart-card">
+          <h4>Daily expenses</h4>
+          <canvas id="days-chart"></canvas>
+        </div>
+        <div class="chart-card">
+          <h4>By weekday</h4>
+          <canvas id="weekday-chart"></canvas>
+        </div>
+        <div class="chart-card">
+          <h4>Expenses by category</h4>
+          <canvas id="category-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- ===== REPEATING TRANSACTIONS ===== -->
+      <h3 class="section-title">You often buy</h3>
+      <div class="repeat-list" id="repeat-list">
+        <!-- rendered by JS -->
+      </div>
+
+      <!-- ===== RECENT TRANSACTIONS ===== -->
+      <h3 class="section-title">Recent transactions</h3>
+      <div class="recent-list" id="recent-list">
+        <!-- rendered by JS -->
+      </div>
     </div>
 
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="js/config.js"></script>
-    <script>
-      if (!isLoggedIn()) {
-        window.location.href = "login.html";
-      }
-
-      function logout() {
-        clearToken();
-        window.location.href = "login.html";
-      }
-    </script>
+    <script src="js/dashboard.js"></script>
   </body>
 </html>

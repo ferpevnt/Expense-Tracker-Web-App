@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 from security import auth_token, security
-from sqlalchemy import join, outerjoin, func, Float
+from sqlalchemy import join, outerjoin, func, Float, case, cast
 from typing import Optional, List
 from datetime import datetime, timedelta, date as date_type, timezone
 from dateutil.relativedelta import relativedelta
@@ -126,22 +126,31 @@ def FinancesStatistics(filtering: str, target_date: Optional[str] = None, user: 
         "transaction_whole_summ": whole_summ,
         "avg_per_day": avg_per_day,
     }
-
     categories_total = func.sum(models.Transaction.summ).label("total")
-    percent = (categories_total.cast(Float) * 100 / whole_summ).label("percent") if whole_summ > 0 else None
-
-    categories_info = transactions.with_entities(
+    
+    rows = transactions.with_entities(
         models.Category.id,
         models.Category.category,
         models.Category.emoji,
         categories_total,
-        percent
     ).group_by(
         models.Category.id
     ).order_by(
         categories_total.desc()
     ).all()
-
+    
+    categories_info = []
+    for r in rows:
+        total_val = float(r.total) if r.total is not None else 0.0
+        percent = (total_val * 100 / float(whole_summ)) if whole_summ > 0 else 0.0
+        categories_info.append({
+            "id": r.id,
+            "category": r.category,
+            "emoji": r.emoji,
+            "total": total_val,
+            "percent": percent,
+        })
+    
     categories_top_3 = categories_info[:3]
 
     return {
