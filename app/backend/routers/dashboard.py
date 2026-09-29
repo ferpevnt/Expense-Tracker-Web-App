@@ -286,4 +286,36 @@ def GraphsData(
         }
     }
 
+@router.get("/total", status_code=200)
+def BalanceExpenses(user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
+
+    user_id = user.id
+
+    total = db.query(
+        func.coalesce(func.sum(models.Transaction.summ), 0)        
+    ).filter(
+        models.Transaction.user_id == user_id
+    )
+
+    def total_count(total, t_type):
+        total = total.filter(
+            models.Transaction.transaction_type == t_type
+        ).scalar()
+        return total
+    
+    total_income = total_count(total, True)
+    total_expense = total_count(total, False)
+
+    total_transaction = db.query(
+        func.count(models.Transaction.id)
+    ).filter(
+        models.Transaction.user_id == user_id
+    ).scalar()
+
+    return {
+        "balance": total_income - total_expense,
+        "total_income": total_income,
+        "total_expense": total_expense,
+        "total_transaction": total_transaction
+    }
     
