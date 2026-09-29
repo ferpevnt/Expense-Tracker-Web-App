@@ -78,8 +78,7 @@ def TransactionUpdate(id: int, transaction_data: schemas.TransactionUpdate, user
     
     if transaction_data.category is not None and transaction_data.category == 0:
         transaction.category_id = None
-    
-    if transaction_data.category is not None:
+    elif transaction_data.category is not None:
         transaction.category_id = transaction_data.category
     
     db.commit()
@@ -115,7 +114,7 @@ def TransactionDelete(id: int, user: models.User=Depends(auth_token.get_current_
 @router.get("/filtered", status_code=200, response_model=List[schemas.TransactionOut])
 def TransactionsLoad(page: int,
                     
-                    search: Optional[str],
+                    search: Optional[str] = None,
                     t_type: Optional[bool] = None,
                     category: Optional[int] = None,
                     
