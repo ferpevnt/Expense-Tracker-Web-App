@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, HTTPException, Response
+from fastapi import APIRouter, Depends, status, HTTPException, Response, Request
 from sqlalchemy.orm import Session
 from database import database, schemas, models
 import sys
@@ -9,6 +9,7 @@ from sqlalchemy import join, outerjoin, func, text
 from typing import Optional, List
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
+from security.limiter import limiter
 
 router = APIRouter(prefix="/profile", tags=["Profile"])
 
@@ -22,7 +23,8 @@ def find_user(user_id, db):
     return user
 
 @router.get("/", status_code=200)
-def NameEmail(username: Optional[bool] = False, email: Optional[bool] = False, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
+@limiter.limit("50/minute")
+def NameEmail(request: Request, username: Optional[bool] = False, email: Optional[bool] = False, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
     
     user_id = user.id
 
@@ -49,7 +51,8 @@ def NameEmail(username: Optional[bool] = False, email: Optional[bool] = False, u
                             detail="At least one field should be not empty")
 
 @router.put("/name", status_code=200)
-def NameUpdate(name: schemas.NameUpdate, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
+@limiter.limit("7/hour")
+def NameUpdate(request: Request, name: schemas.NameUpdate, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
 
     user_id = user.id
     user = find_user(user_id, db)
@@ -61,7 +64,8 @@ def NameUpdate(name: schemas.NameUpdate, user: models.User=Depends(auth_token.ge
     return {"name": user.name}
     
 @router.put("/password", status_code=200)
-def PasswordUpdate(data: schemas.PasswordUpdate, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
+@limiter.limit("5/hour")
+def PasswordUpdate(request: Request, data: schemas.PasswordUpdate, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
 
     user_id = user.id
 
@@ -76,7 +80,8 @@ def PasswordUpdate(data: schemas.PasswordUpdate, user: models.User=Depends(auth_
     db.commit()
 
 @router.delete("/user", status_code=204)
-def UserDelete(user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
+@limiter.limit("2/hour")
+def UserDelete(request: Request, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
 
     user_id = user.id
 
