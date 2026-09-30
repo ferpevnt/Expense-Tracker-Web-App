@@ -13,14 +13,14 @@ class Settings:
     if DATABASE_URL is None:
         raise ValueError(
             "DATABASE_URL is not set in .env file!\n"
-            "Please create .env file with: DATABASE_URL=postgresql://..."
+            "Please create .env file with: DATABASE_URL=postgresql://your_link_here"
         )
 
     ALLOWED_ORIGINS: list = os.getenv("ALLOWED_ORIGINS")
     if ALLOWED_ORIGINS is None or ALLOWED_ORIGINS == "":
         raise ValueError(
             "ALLOWED_ORIGINS is not set in .env file!\n"
-            "Please create .env file with: ALLOWED_ORIGINS=http://localhost:5500,..."
+            "Please create .env file with: ALLOWED_ORIGINS=https://your_link_here"
         )
     ALLOWED_ORIGINS = ALLOWED_ORIGINS.split(",")
 
@@ -42,7 +42,13 @@ class Settings:
     if ACCESS_TOKEN_EXPIRE_MINUTES is None:
         raise ValueError(
             "ACCESS_TOKEN_EXPIRE_MINUTES is not set in .env file\n"
-            "Please create .env fike with: ACCESS_TOKEN_EXPIRE_MINUTES=minutes"
+            "Please create .env file with: ACCESS_TOKEN_EXPIRE_MINUTES=minutes"
+        )
+    REDIS_STORAGE_URI: str = os.getenv("REDIS_STORAGE_URI")
+    if REDIS_STORAGE_URI is None:
+        raise ValueError(
+            "REDIS_STORAGE_URI is not set in .env file\n"
+            "Please create .env file with REDIS_STORAGE_URI=uri"
         )
 
 settings = Settings()

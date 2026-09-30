@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Profile — Expense Tracker</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/categories.css" />
+    <link rel="stylesheet" href="css/profile.css" />
+
+    <!-- 
+        AUTO-GENERATED FRONTEND
+        This frontend was generated with AI assistance.
+        TODO: Rewrite manually in the future for learning purposes.
+    -->
+  </head>
+  <body>
+    <div class="page-container">
+      <!-- ===== NAVIGATION ===== -->
+      <nav class="navbar">
+        <div class="nav-links">
+          <a href="index.html">Dashboard</a>
+          <a href="transactions.html">Transactions</a>
+          <a href="categories.html">Categories</a>
+          <a href="profile.html" class="active">Profile</a>
+        </div>
+        <div class="user-info">
+          <span>👤 <span id="user-name">User</span></span>
+        </div>
+      </nav>
+
+      <!-- ===== PAGE HEADER ===== -->
+      <div class="page-header">
+        <h2>Profile</h2>
+      </div>
+
+      <div id="message" class="message"></div>
+
+      <!-- ===== PROFILE CARDS ===== -->
+      <div class="profile-grid">
+        <!-- Account info -->
+        <div class="profile-card">
+          <div class="profile-card-header">
+            <div class="profile-avatar">👤</div>
+            <div>
+              <h3 id="display-name">User</h3>
+              <p id="display-email" class="profile-email">—</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Update name -->
+        <div class="profile-card">
+          <h3>Change Name</h3>
+          <p class="profile-card-desc">Update your display name</p>
+          <div id="name-message" class="message"></div>
+
+          <div class="form-group">
+            <label for="name-input">New name</label>
+            <input
+              type="text"
+              id="name-input"
+              placeholder="Your name"
+              minlength="2"
+              maxlength="50"
+            />
+          </div>
+
+          <button class="btn btn-primary" id="save-name-btn">Save Name</button>
+        </div>
+
+        <!-- Update password -->
+        <div class="profile-card">
+          <h3>Change Password</h3>
+          <p class="profile-card-desc">
+            Choose a strong password (8–56 characters)
+          </p>
+          <div id="password-message" class="message"></div>
+
+          <div class="form-group">
+            <label for="current-password">Current password</label>
+            <input
+              type="password"
+              id="current-password"
+              placeholder="Your current password"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="new-password">New password</label>
+            <input
+              type="password"
+              id="new-password"
+              placeholder="At least 8 characters"
+              minlength="8"
+              maxlength="56"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="confirm-new-password">Confirm new password</label>
+            <input
+              type="password"
+              id="confirm-new-password"
+              placeholder="Repeat new password"
+            />
+          </div>
+
+          <button class="btn btn-primary" id="save-password-btn">
+            Save Password
+          </button>
+        </div>
+
+        <!-- Danger zone -->
+        <div class="profile-card danger-zone">
+          <h3>⚠️ Danger Zone</h3>
+          <p class="profile-card-desc">
+            Deleting your account will remove all your transactions and
+            categories. This action <strong>cannot be undone</strong>.
+          </p>
+          <button class="btn btn-danger" id="delete-account-btn">
+            Delete Account
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/profile.js"></script>
+  </body>
+</html>

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, HTTPException, Response
+from fastapi import APIRouter, Depends, status, HTTPException, Response, Request
 from sqlalchemy.orm import Session, joinedload
 from database import database, schemas, models
 import sys
@@ -9,6 +9,7 @@ from sqlalchemy import join, outerjoin, func, text
 from typing import Optional, List, Union
 from datetime import datetime, timedelta, date
 from dateutil.relativedelta import relativedelta
+from security.limiter import limiter
 
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
 
@@ -24,7 +25,8 @@ def find_transaction(id, user_id, db):
     return transaction
 
 @router.post("/transaction", status_code=201, response_model=schemas.TransactionOut)
-def TransactionCreate(transaction_data: schemas.TransactionCreate, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
+@limiter.limit("100/hour")
+def TransactionCreate(request: Request, transaction_data: schemas.TransactionCreate, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
     
     new_transaction = models.Transaction(
         title = transaction_data.title,
@@ -60,7 +62,8 @@ def TransactionCreate(transaction_data: schemas.TransactionCreate, user: models.
     return transaction
 
 @router.put("/transaction/{id}", status_code=200, response_model=schemas.TransactionOut)
-def TransactionUpdate(id: int, transaction_data: schemas.TransactionUpdate, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
+@limiter.limit("100/hour")
+def TransactionUpdate(request: Request, id: int, transaction_data: schemas.TransactionUpdate, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
     
 
     transaction = find_transaction(id, user.id, db)
@@ -80,8 +83,7 @@ def TransactionUpdate(id: int, transaction_data: schemas.TransactionUpdate, user
     
     if transaction_data.category is not None and transaction_data.category == 0:
         transaction.category_id = None
-    
-    if transaction_data.category is not None:
+    elif transaction_data.category is not None:
         transaction.category_id = transaction_data.category
     
     db.commit()
@@ -106,7 +108,8 @@ def TransactionUpdate(id: int, transaction_data: schemas.TransactionUpdate, user
     return transaction
 
 @router.delete("/transaction/{id}", status_code=204)
-def TransactionDelete(id: int, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
+@limiter.limit("60/hour")
+def TransactionDelete(request: Request, id: int, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
 
     transaction = find_transaction(id, user.id, db)
 
@@ -114,13 +117,14 @@ def TransactionDelete(id: int, user: models.User=Depends(auth_token.get_current_
     db.commit()
     return
 
-@router.get("/filtered", status_code=200, response_model=schemas.TransactionsOut)
+@router.get("/filtered", status_code=200, response_model=List[schemas.TransactionOut])
+@limiter.limit("200/minute")
 def TransactionsLoad(
-                    search: Optional[str] = None,
+                    request: Request,
 
-                    page: int = 1,
+                    page: int,
                     
-                    
+                    search: Optional[str] = None,
                     t_type: Optional[bool] = None,
                     category: Optional[int] = None,
                     

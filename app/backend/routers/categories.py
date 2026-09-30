@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, HTTPException, Response
+from fastapi import APIRouter, Depends, status, HTTPException, Response, Request
 from sqlalchemy.orm import Session
 from database import database, schemas, models
 import sys
@@ -9,6 +9,7 @@ from sqlalchemy import join, outerjoin, func, text
 from typing import Optional, List
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
+from security.limiter import limiter
 
 router = APIRouter(prefix="/categories", tags=["Categories"])
 
@@ -23,7 +24,8 @@ def find_category(id: int, user_id: int, db: Session):
 
 
 @router.post("/category", status_code=201)
-def CategoryCreate(category_data: schemas.CategoryCreate, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
+@limiter.limit("15/hour")
+def CategoryCreate(request: Request, category_data: schemas.CategoryCreate, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
 
     existing_category = db.query(models.Category).filter(models.Category.user_id == user.id,models.Category.category == category_data.category).first()
     
@@ -49,7 +51,8 @@ def CategoryCreate(category_data: schemas.CategoryCreate, user: models.User=Depe
         "emoji": new_category.emoji}
 
 @router.put("/category/{id}", status_code=200)
-def CategoryUpdate(id: int, category_data: schemas.CategoryUpdate, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
+@limiter.limit("30/hour")
+def CategoryUpdate(request: Request, id: int, category_data: schemas.CategoryUpdate, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
     
     category = find_category(id, user.id, db)
 
@@ -75,7 +78,8 @@ def CategoryUpdate(id: int, category_data: schemas.CategoryUpdate, user: models.
         "emoji": category.emoji}
 
 @router.delete("/category/{id}", status_code=204)
-def CategoryDelete(id: int, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
+@limiter.limit("30/hour")
+def CategoryDelete(request: Request, id: int, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
     
     category = find_category(id, user.id, db)
 
@@ -85,7 +89,8 @@ def CategoryDelete(id: int, user: models.User=Depends(auth_token.get_current_use
 
 # load transactions list on the page
 @router.get("/filtered", status_code=200, response_model=List[schemas.Category])
-def CategoriesLoad(search: Optional[str] = None, sort: Optional[str] = None, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
+@limiter.limit("100/hour")
+def CategoriesLoad(request: Request, search: Optional[str] = None, sort: Optional[str] = None, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
 
     #user categories
     query = db.query(
@@ -134,7 +139,8 @@ def CategoriesLoad(search: Optional[str] = None, sort: Optional[str] = None, use
 
 #data for graph
 @router.get("/graph", status_code=200, response_model=List[schemas.CategoryGraph])
-def GraphData(filtering: Optional[str] = None, user: models.User = Depends(auth_token.get_current_user),db: Session=Depends(database.get_db)):
+@limiter.limit("50/minute")
+def GraphData(request: Request, filtering: Optional[str] = None, user: models.User = Depends(auth_token.get_current_user),db: Session=Depends(database.get_db)):
 
     #user categories + transaction count for each category
     categories = db.query(
@@ -176,7 +182,8 @@ def GraphData(filtering: Optional[str] = None, user: models.User = Depends(auth_
 
 # load categories for select menu when creating transaction
 @router.get("/", status_code=200,response_model=List[schemas.Categories])
-def Categories(user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
+@limiter.limit("100/hour")
+def Categories(request: Request, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
 
     categories = db.query(
         models.Category.id,

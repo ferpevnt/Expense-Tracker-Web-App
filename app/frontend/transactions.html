@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Transactions — Expense Tracker</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/transactions.css" />
+    <link rel="stylesheet" href="css/categories.css" />
+
+    <!-- 
+        AUTO-GENERATED FRONTEND
+        This frontend was generated with AI assistance.
+        TODO: Rewrite manually in the future for learning purposes.
+    -->
+  </head>
+  <body>
+    <div class="page-container">
+      <!-- ===== NAVIGATION ===== -->
+      <nav class="navbar">
+        <div class="nav-links">
+          <a href="index.html">Dashboard</a>
+          <a href="transactions.html" class="active">Transactions</a>
+          <a href="categories.html">Categories</a>
+          <a href="profile.html">Profile</a>
+        </div>
+        <div class="user-info">
+          <span>👤 <span id="user-name">User</span></span>
+        </div>
+      </nav>
+
+      <!-- ===== PAGE HEADER ===== -->
+      <div class="page-header">
+        <h2>Transactions</h2>
+        <button class="btn btn-primary" id="add-btn">➕ Add Transaction</button>
+      </div>
+
+      <div id="message" class="message"></div>
+
+      <!-- ===== FILTERS ===== -->
+      <div class="filters-panel">
+        <div class="toolbar">
+          <input
+            type="text"
+            id="search-input"
+            placeholder="🔍 Search by title or description..."
+          />
+          <select id="type-filter">
+            <option value="">All types</option>
+            <option value="expense">💸 Expense</option>
+            <option value="income">💰 Income</option>
+          </select>
+          <select id="category-filter">
+            <option value="">All categories</option>
+          </select>
+          <select id="sort-select">
+            <option value="date_created_new">Newest first</option>
+            <option value="date_created_old">Oldest first</option>
+            <option value="amount_high">Amount: high → low</option>
+            <option value="amount_low">Amount: low → high</option>
+            <option value="A-Z">Title A-Z</option>
+            <option value="Z-A">Title Z-A</option>
+          </select>
+        </div>
+
+        <div class="toolbar">
+          <input
+            type="number"
+            id="min-sum"
+            placeholder="Min amount"
+            min="0"
+            step="0.01"
+          />
+          <input
+            type="number"
+            id="max-sum"
+            placeholder="Max amount"
+            min="0"
+            step="0.01"
+          />
+          <input type="date" id="start-date" title="From date" />
+          <input type="date" id="end-date" title="To date" />
+          <button class="btn btn-secondary" id="reset-filters">Reset</button>
+        </div>
+      </div>
+
+      <!-- ===== LIST ===== -->
+      <div class="transactions-list" id="transactions-list">
+        <!-- Items rendered by JS -->
+      </div>
+
+      <!-- ===== PAGINATION ===== -->
+      <div class="pagination" id="pagination"></div>
+    </div>
+
+    <!-- ===== MODAL ===== -->
+    <div class="modal-overlay" id="modal-overlay">
+      <div class="modal">
+        <h3 id="modal-title">Add Transaction</h3>
+        <div id="modal-message" class="message"></div>
+
+        <!-- Type toggle -->
+        <div class="form-group">
+          <label>Type</label>
+          <div class="type-toggle" id="type-toggle">
+            <button type="button" class="type-btn active" data-type="expense">
+              💸 Expense
+            </button>
+            <button type="button" class="type-btn" data-type="income">
+              💰 Income
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="title-input">Title</label>
+          <input
+            type="text"
+            id="title-input"
+            placeholder="e.g. Lunch at cafe"
+            maxlength="100"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="summ-input">Amount</label>
+          <input
+            type="number"
+            id="summ-input"
+            placeholder="0.00"
+            min="0"
+            step="0.01"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="category-input">Category</label>
+          <select id="category-input">
+            <option value="">— No category —</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="description-input"
+            >Description <span class="optional">(optional)</span></label
+          >
+          <textarea
+            id="description-input"
+            placeholder="Add a note..."
+            rows="3"
+            maxlength="300"
+          ></textarea>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn btn-secondary" id="modal-cancel-btn">
+            Cancel
+          </button>
+          <button class="btn btn-primary" id="modal-save-btn">Create</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/transactions.js"></script>
+  </body>
+</html>
