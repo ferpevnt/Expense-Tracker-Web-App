@@ -15,7 +15,7 @@ router = APIRouter(prefix="/transactions", tags=["Transactions"])
 
 def find_transaction(id, user_id, db):
     
-    transaction = db.query(models.Transaction).filter(models.Transaction.user_id == user.id, models.Transaction.id == id).first()
+    transaction = db.query(models.Transaction).filter(models.Transaction.user_id == user_id, models.Transaction.id == id).first()
 
     if transaction == None:
         raise HTTPException(
@@ -55,7 +55,8 @@ def TransactionCreate(request: Request, transaction_data: schemas.TransactionCre
     ).outerjoin(
         models.Category, models.Category.id == models.Transaction.category_id
     ).filter(
-        models.Transaction.id == new_transaction.id
+        models.Transaction.id == new_transaction.id,
+        models.Transaction.user_id == user.id
     ).first()
 
     return transaction
@@ -64,6 +65,7 @@ def TransactionCreate(request: Request, transaction_data: schemas.TransactionCre
 @limiter.limit("100/hour")
 def TransactionUpdate(request: Request, id: int, transaction_data: schemas.TransactionUpdate, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
     
+
     transaction = find_transaction(id, user.id, db)
     
     #optional update(can be only 1 field)(422 error if no values)
@@ -252,6 +254,15 @@ def TransactionsLoad(
     #offset count
     skip = (page - 1) * 15
 
+    total = transactions.count()
+
     transactions = transactions.offset(skip).limit(15).all()
 
-    return transactions
+    pages = (total + 15 - 1) // 15
+
+    return {
+        "items": transactions,
+        "total": total,
+        "page": page,
+        "pages": pages
+    }
