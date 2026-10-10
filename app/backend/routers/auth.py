@@ -40,8 +40,8 @@ def UserLogin(request: Request, user: schemas.UserLogin, db: Session=Depends(dat
             "email": user_check.email}
 
 @router.post("/auth/signup", status_code=201)
-@limiter.limit("5/hour")
-@limiter.limit("2/minute")
+@limiter.limit("100/hour")
+@limiter.limit("100/minute")
 def UserCreate(request: Request, user: schemas.UserCreate, db: Session=Depends(database.get_db)):
 
     existing_user = find_user(user.email, db)
