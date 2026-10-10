@@ -1,0 +1,35 @@
+# Virtual environments
+**/.venv/
+**/venv/
+**/env/
+
+# Python
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/.pytest_cache/
+**/.mypy_cache/
+
+# Environment files
+**/.env
+**/.env.*
+!**/.env.example
+
+# Git
+**/.git/
+**/.gitignore
+
+# Docker
+**/Dockerfile
+**/dockerfile
+**/.dockerignore
+
+# IDE
+**/.vscode/
+**/.idea/
+
+# Docs
+**/*.md
+
+# Frontend
+frontend/
