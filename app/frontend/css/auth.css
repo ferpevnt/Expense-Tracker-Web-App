@@ -1,0 +1,29 @@
+/* ===== PASSWORD HINT ===== */
+.password-hint {
+  font-size: 12px;
+  color: #95a5a6;
+  margin-top: 4px;
+}
+
+/* ===== FIELD ERROR ===== */
+input.field-error {
+  border-color: #e74c3c;
+  background: #fdecea;
+}
+
+input.field-error:focus {
+  border-color: #e74c3c;
+  box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.15);
+}
+
+/* ===== SUCCESS STATE ===== */
+input.field-success {
+  border-color: #27ae60;
+  background: #eafaf1;
+}
+
+/* ===== FORM SPACING ===== */
+#login-form .form-group:last-of-type,
+#signup-form .form-group:last-of-type {
+  margin-bottom: 24px;
+}
