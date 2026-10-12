@@ -41,7 +41,7 @@ def TransactionCreate(request: Request, transaction_data: schemas.TransactionCre
     db.commit()
     db.refresh(new_transaction)
 
-    #transaction with added category id, name, emoji
+    #transaction with added category, name, emoji
     transaction = db.query(
         models.Transaction.id,
         models.Transaction.title,
@@ -49,8 +49,8 @@ def TransactionCreate(request: Request, transaction_data: schemas.TransactionCre
         models.Transaction.summ,
         models.Transaction.transaction_type,
         models.Transaction.created_date,
-        models.Transaction.category_id,
         models.Category.category,
+        models.Category.category_id,
         models.Category.emoji
     ).outerjoin(
         models.Category, models.Category.id == models.Transaction.category_id
@@ -88,7 +88,7 @@ def TransactionUpdate(request: Request, id: int, transaction_data: schemas.Trans
     
     db.commit()
 
-    #transaction with added category id, name, emoji
+    #transaction with added category, name, emoji
     transaction = db.query(
         models.Transaction.id,
         models.Transaction.title,
@@ -96,8 +96,8 @@ def TransactionUpdate(request: Request, id: int, transaction_data: schemas.Trans
         models.Transaction.summ,
         models.Transaction.transaction_type,
         models.Transaction.created_date,
-        models.Transaction.category_id,
         models.Category.category,
+        models.Transaction.category_id,
         models.Category.emoji
     ).outerjoin(
         models.Category, models.Category.id == models.Transaction.category_id
@@ -145,7 +145,7 @@ def TransactionsLoad(
             status_code=400,
             detail="Page must be greater than 0")
 
-    #user transactions + categories(id, name, emoji)
+    #user transactions + categories(name, emoji)
     transactions = db.query(
         models.Transaction.id,
         models.Transaction.title,
@@ -153,8 +153,8 @@ def TransactionsLoad(
         models.Transaction.summ,
         models.Transaction.transaction_type,
         models.Transaction.created_date,
-        models.Transaction.category_id,
         models.Category.category,
+        models.Transaction.category_id,
         models.Category.emoji
     ).outerjoin(
         models.Category, models.Category.id == models.Transaction.category_id

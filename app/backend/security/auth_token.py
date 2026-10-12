@@ -35,7 +35,18 @@ def verify_auth_token(token: str, credentials_exception):
     except JWTError:
         raise credentials_exception
     return token_data
-        
+
+def verify_auth_token_soft(token: str):
+
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("user_id")
+        if not user_id:
+            return None
+        return schemas.TokenData(id=user_id)
+    except JWTError:
+        return None
+
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(database.get_db)):
     credentials_exception = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                                           detail=f"Could not validate credentials", headers={"WWW-Authenticate": "Bearer"})

@@ -164,11 +164,11 @@ def GraphData(request: Request, filtering: Optional[str] = None, user: models.Us
             categories = categories.filter(func.date(models.Category.created_date) == yesterday)
         
         elif filtering == "week":
-            week = datetime.today().date() - relativedelta(days=today.weekday())
+            week = datetime.today().date() - relativedelta(days=datetime.today().date().weekday())
             categories = categories.filter(func.date(models.Category.created_date) >= week)
         
         elif filtering == "month":
-            month = today.replace(day=1)
+            month = datetime.today().date().replace(day=1)
             categories = categories.filter(func.date(models.Category.created_date) >= month)
         else:
             raise HTTPException(
