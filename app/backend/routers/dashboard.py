@@ -1,19 +1,24 @@
-from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi import APIRouter, Depends, status, HTTPException, Request
 from sqlalchemy.orm import Session
 from database import database, schemas, models
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 from security import auth_token, security
-from sqlalchemy import join, outerjoin, func, Float, case, cast
+from sqlalchemy import join, outerjoin, func, Float, case, cast, text
 from typing import Optional, List
 from datetime import datetime, timedelta, date, timezone
 from dateutil.relativedelta import relativedelta
+import json
+from security.redis_client import redis_client
+from security.limiter import limiter
 
 router = APIRouter(tags=["Dashboard"], prefix="/dashboard")
 
 @router.get("/total", status_code=200)
-def InfoTotal(user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
+@limiter.limit("30/minute")
+@limiter.limit("300/hour")
+def InfoTotal(request: Request, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
 
     user_id = user.id
 
@@ -49,7 +54,9 @@ def InfoTotal(user: models.User=Depends(auth_token.get_current_user), db: Sessio
     }
 
 @router.get("/transactions", status_code=200, response_model=List[schemas.TransactionOutTen])
-def TransactionsTen(user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
+@limiter.limit("30/minute")
+@limiter.limit("300/hour")
+def TransactionsTen(request: Request, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
 
     user_id = user.id
 
@@ -74,14 +81,28 @@ def TransactionsTen(user: models.User=Depends(auth_token.get_current_user), db: 
     return transactions_10
 
 @router.get("/finances", status_code=200)
+@limiter.limit("20/minute")
+@limiter.limit("200/hour")
 def FinancesStatistics(
+    request: Request,
     filtering: str,
-    target_date: Optional[datetime.date] = None,
+    target_date: Optional[date] = None,
     
     user: models.User=Depends(auth_token.get_current_user),
     db: Session=Depends(database.get_db)):
 
     user_id = user.id
+
+    cache_key = f"dashboard:finances:{user_id}:{filtering}:{target_date}"
+
+    cached = redis.client.get(cache_key)
+
+    try:
+        cached = redis_client.get(cache_key)
+        if cached:
+            return json.loads(cached)
+    except Exception:
+        pass 
 
     def filter_period(filtering, target_date, user_id, db):
         
@@ -203,7 +224,7 @@ def FinancesStatistics(
         text("total_day_sum DESC")
     ).first()
 
-    return {
+    result = {
     "expenses_info": {
         "transaction_whole_sum": total_sum,
         "avg_sum": float(expenses_info.avg_sum),
@@ -227,8 +248,17 @@ def FinancesStatistics(
     "categories_expense_percent": categories_expense_percent,
     }
 
+    try:
+        redis_client.setex(cache_key, 60, json.dumps(result, default=str))
+    except Exception:
+        pass
+    return result
+
 @router.get("/graphs", status_code=200, response_model=schemas.GraphsData)
+@limiter.limit("20/minute")
+@limiter.limit("200/hour")
 def GraphsData(
+    request: Request,
     date_start: date,
     date_end: Optional[date] = None,
     previous_date_start: Optional[date] = None,
@@ -237,6 +267,15 @@ def GraphsData(
     db: Session=Depends(database.get_db)):
 
     user_id = user.id
+
+    cache_key = f"dashboard:graphs:{user_id}:{date_start}:{date_end}:{previous_date_start}:{previous_date_end}"
+
+    try:
+        cached = redis.client.get(cache_key)
+        if cached:
+            return json.loads(cached)
+    except Exception:
+        pass
 
     def date_check(date_start, date_end, user_id, db):
         
@@ -273,8 +312,6 @@ def GraphsData(
         ).group_by(
             filtering,
         ).all()
-
-        return transactions_days_weekdays
 
     def repeat_transactions(transactions_filtered):
 
@@ -313,18 +350,23 @@ def GraphsData(
             detail="Wrong filter"
         )            
     result = {
-        "current": {
-            "days": transactions_expenses_days,
-            "week_days": transactions_expenses_week_days,
-            "repeat_transactions": transactions_repeated,
+    "current": {
+        "days": [dict(d._mapping) for d in transactions_expenses_days],
+        "week_days": [dict(w._mapping) for w in transactions_expenses_week_days],
+        "repeat_transactions": [dict(r._mapping) for r in transactions_repeated],
         }
     }
 
     if previous_date_start and previous_date_end:
         result["previous"] = {
-            "days": transactions_previous_expenses_days,
-            "week_days": transactions_previous_expenses_week_days,
-            "repeat_transactions": transactions_previous_repeated,
+            "days": [dict(d._mapping) for d in transactions_previous_expenses_days],
+            "week_days": [dict(w._mapping) for w in transactions_previous_expenses_week_days],
+            "repeat_transactions": [dict(r._mapping) for r in transactions_previous_repeated],
         }
+
+    try:
+        redis_client.setex(cache_key, 60, json.dumps(result, default=str))
+    except Exception:
+        pass
 
     return result
