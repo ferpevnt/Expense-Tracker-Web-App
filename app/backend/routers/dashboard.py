@@ -139,7 +139,7 @@ def FinancesStatistics(
     expenses_info = transactions.with_entities(
         func.coalesce(
             func.sum(models.Transaction.summ), 0
-            ).label("transaction_whole_sum"),
+            ).label("transaction_whole_sum"))
 
     whole_summ = row.transaction_whole_summ or 0
     avg_summ = row.avg_summ or 0
