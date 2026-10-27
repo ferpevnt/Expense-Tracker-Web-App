@@ -226,3 +226,105 @@ def FinancesStatistics(
     "categories_top_3": categories_top_3,
     "categories_expense_percent": categories_expense_percent,
     }
+
+@router.get("/graphs", status_code=200, response_model=schemas.GraphsData)
+def GraphsData(
+    date_start: date,
+    date_end: Optional[date] = None,
+    previous_date_start: Optional[date] = None,
+    previous_date_end: Optional[date] = None,
+    user: models.User=Depends(auth_token.get_current_user),
+    db: Session=Depends(database.get_db)):
+
+    user_id = user.id
+
+    def date_check(date_start, date_end, user_id, db):
+        
+        filters = [
+            models.Transaction.user_id == user_id,
+            models.Transaction.transaction_type == False,  
+            models.Transaction.created_date >= date_start]   
+
+        if date_end:        
+            filters.append(models.Transaction.created_date <= date_end)
+        
+        transactions_filtered = db.query(
+            models.Transaction
+        ).filter(
+            *filters
+        )
+        return transactions_filtered
+
+    def expenses_days(transactions_filtered, days):
+        if days == "days":
+            filtering = func.date(models.Transaction.created_date).label("created_date")
+            sum_label = "day_expenses"            
+        elif days == "weekdays":
+            filtering = func.trim(
+                func.to_char(models.Transaction.created_date, 'Day')
+            ).label("week_day")
+            sum_label = "weekday_expenses"        
+        else:
+            raise ValueError(f"Unknown period: {days}")
+
+        return transactions_filtered.with_entities(
+            filtering,
+            func.sum(models.Transaction.summ).label(sum_label),
+        ).group_by(
+            filtering,
+        ).all()
+
+        return transactions_days_weekdays
+
+    def repeat_transactions(transactions_filtered):
+
+        transactions_repeated = transactions_filtered.with_entities(
+            models.Transaction.title,
+            func.avg(models.Transaction.summ).label("summ"),
+            models.Category.category,
+            models.Category.emoji
+        ).outerjoin(
+            models.Category,
+            models.Transaction.category_id == models.Category.id
+        ).group_by(
+            models.Transaction.title,
+            models.Category.category,
+            models.Category.emoji
+        ).having(
+            func.count(models.Transaction.title) >= 4
+        ).all()
+
+        return transactions_repeated
+
+    transactions_current = date_check(date_start, date_end, user_id, db)
+    transactions_expenses_days = expenses_days(transactions_current, "days")
+    transactions_expenses_week_days = expenses_days(transactions_current, "weekdays") 
+    transactions_repeated = repeat_transactions(transactions_current)
+
+    if previous_date_start and previous_date_end:
+        transactions_previous = date_check(previous_date_start, previous_date_end, user_id, db)
+        transactions_previous_expenses_days = expenses_days(transactions_previous, "days")
+        transactions_previous_expenses_week_days = expenses_days(transactions_previous, "weekdays")
+        transactions_previous_repeated = repeat_transactions(transactions_previous)
+
+    elif previous_date_start or previous_date_end:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Wrong filter"
+        )            
+    result = {
+        "current": {
+            "days": transactions_expenses_days,
+            "week_days": transactions_expenses_week_days,
+            "repeat_transactions": transactions_repeated,
+        }
+    }
+
+    if previous_date_start and previous_date_end:
+        result["previous"] = {
+            "days": transactions_previous_expenses_days,
+            "week_days": transactions_previous_expenses_week_days,
+            "repeat_transactions": transactions_previous_repeated,
+        }
+
+    return result
