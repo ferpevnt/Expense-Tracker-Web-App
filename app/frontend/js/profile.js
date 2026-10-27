@@ -1,23 +1,30 @@
 // ===== LOAD PROFILE =====
 async function loadProfile() {
-  const { response, data } = await apiRequest(
-    "/profile/?username=true&email=true",
-  );
+  try {
+    const { response, data } = await apiRequest(
+      "/profile/?username=true&email=true",
+    );
 
-  if (response.status === 200) {
-    document.getElementById("display-name").textContent = data.name || "User";
-    document.getElementById("display-email").textContent = data.email || "";
-    document.getElementById("name-input").value = data.name || "";
-    document.getElementById("user-name").textContent = data.name || "User";
+    if (response.status === 200) {
+      document.getElementById("display-name").textContent = data.name || "—";
+      document.getElementById("display-email").textContent = data.email || "—";
+      document.getElementById("name-input").value = data.name || "";
+      document.getElementById("nav-user-name").textContent =
+        data.name || "User";
 
-    // sync with localStorage
-    localStorage.setItem("user_name", data.name || "");
-    localStorage.setItem("user_email", data.email || "");
-  } else if (response.status === 401) {
-    clearToken();
-    window.location.href = "login.html";
-  } else {
-    showMessage("message", "Failed to load profile", "error");
+      // Sync localStorage
+      localStorage.setItem("user_name", data.name || "");
+      localStorage.setItem("user_email", data.email || "");
+    } else if (response.status === 401) {
+      clearToken();
+      window.location.href = "login.html";
+    } else if (response.status === 400) {
+      showMessage("message", "Failed to load profile", "error");
+    } else {
+      showMessage("message", "Failed to load profile", "error");
+    }
+  } catch (error) {
+    showMessage("message", "Network error", "error");
   }
 }
 
@@ -43,7 +50,7 @@ async function saveName() {
 
     if (response.status === 200) {
       document.getElementById("display-name").textContent = data.name;
-      document.getElementById("user-name").textContent = data.name;
+      document.getElementById("nav-user-name").textContent = data.name;
       localStorage.setItem("user_name", data.name);
       showMessage("name-message", "Name updated successfully ✓", "success");
     } else if (response.status === 401) {
@@ -52,10 +59,12 @@ async function saveName() {
     } else if (response.status === 422) {
       const detail = data?.detail?.[0]?.msg || "Validation error";
       showMessage("name-message", detail, "error");
+    } else if (response.status === 429) {
+      showMessage("name-message", "Too many attempts. Try later.", "error");
     } else {
       showMessage("name-message", "Failed to update name", "error");
     }
-  } catch (err) {
+  } catch (error) {
     showMessage("name-message", "Network error", "error");
   } finally {
     btn.disabled = false;
@@ -71,7 +80,7 @@ async function savePassword() {
   const confirmPassword = document.getElementById("confirm-new-password").value;
 
   if (!currentPassword) {
-    showMessage("password-message", "Enter your current password", "error");
+    showMessage("password-message", "Enter current password", "error");
     return;
   }
 
@@ -92,7 +101,7 @@ async function savePassword() {
   if (newPassword === currentPassword) {
     showMessage(
       "password-message",
-      "New password must differ from the current one",
+      "New password must differ from the old one",
       "error",
     );
     return;
@@ -104,7 +113,10 @@ async function savePassword() {
   try {
     const { response, data } = await apiRequest("/profile/password", {
       method: "PUT",
-      body: { password: currentPassword, new_password: newPassword },
+      body: {
+        password: currentPassword,
+        new_password: newPassword,
+      },
     });
 
     if (response.status === 200) {
@@ -117,8 +129,7 @@ async function savePassword() {
       document.getElementById("new-password").value = "";
       document.getElementById("confirm-new-password").value = "";
     } else if (response.status === 401) {
-      // backend returns 401 for wrong password AND for missing token
-      // check if token still exists to differentiate
+      // 401 може бути: неправильний пароль АБО токен прострочений
       if (!getToken()) {
         clearToken();
         window.location.href = "login.html";
@@ -128,10 +139,12 @@ async function savePassword() {
     } else if (response.status === 422) {
       const detail = data?.detail?.[0]?.msg || "Validation error";
       showMessage("password-message", detail, "error");
+    } else if (response.status === 429) {
+      showMessage("password-message", "Too many attempts. Try later.", "error");
     } else {
       showMessage("password-message", "Failed to update password", "error");
     }
-  } catch (err) {
+  } catch (error) {
     showMessage("password-message", "Network error", "error");
   } finally {
     btn.disabled = false;
@@ -147,7 +160,6 @@ async function deleteAccount() {
   );
   if (!confirmed) return;
 
-  // double confirmation
   const typed = prompt('Type "DELETE" to confirm:');
   if (typed !== "DELETE") {
     showMessage("message", "Deletion cancelled", "error");
@@ -169,17 +181,23 @@ async function deleteAccount() {
     } else if (response.status === 401) {
       clearToken();
       window.location.href = "login.html";
-    } else if (response.status === 404) {
-      showMessage("message", "User not found", "error");
+    } else if (response.status === 429) {
+      showMessage("message", "Too many attempts. Try later.", "error");
       btn.disabled = false;
     } else {
       showMessage("message", "Failed to delete account", "error");
       btn.disabled = false;
     }
-  } catch (err) {
+  } catch (error) {
     showMessage("message", "Network error", "error");
     btn.disabled = false;
   }
+}
+
+// ===== LOGOUT =====
+function handleLogout() {
+  clearToken();
+  window.location.href = "login.html";
 }
 
 // ===== INIT =====
@@ -189,6 +207,10 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   }
 
+  // Fallback для навбару, поки loadProfile не завантажить
+  document.getElementById("nav-user-name").textContent =
+    localStorage.getItem("user_name") || "User";
+
   document.getElementById("save-name-btn").addEventListener("click", saveName);
   document
     .getElementById("save-password-btn")
@@ -196,6 +218,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document
     .getElementById("delete-account-btn")
     .addEventListener("click", deleteAccount);
+  document.getElementById("logout-btn").addEventListener("click", handleLogout);
 
   loadProfile();
 });

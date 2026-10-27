@@ -14,8 +14,13 @@ from security.limiter import limiter
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
 
 def find_transaction(id, user_id, db):
-    
-    transaction = db.query(models.Transaction).filter(models.Transaction.user_id == user_id, models.Transaction.id == id).first()
+
+    transaction = db.query(
+        models.Transaction
+        ).filter(
+            models.Transaction.user_id == user_id,
+            models.Transaction.id == id
+            ).first()
 
     if transaction == None:
         raise HTTPException(
@@ -50,7 +55,7 @@ def TransactionCreate(request: Request, transaction_data: schemas.TransactionCre
         models.Transaction.transaction_type,
         models.Transaction.created_date,
         models.Category.category,
-        models.Category.category_id,
+        models.Transaction.category_id,
         models.Category.emoji
     ).outerjoin(
         models.Category, models.Category.id == models.Transaction.category_id
@@ -65,8 +70,9 @@ def TransactionCreate(request: Request, transaction_data: schemas.TransactionCre
 @limiter.limit("100/hour")
 def TransactionUpdate(request: Request, id: int, transaction_data: schemas.TransactionUpdate, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
     
+    user_id = user.id
 
-    transaction = find_transaction(id, user.id, db)
+    transaction = find_transaction(id, user_id, db)
     
     #optional update(can be only 1 field)(422 error if no values)
     if transaction_data.title is not None:
@@ -111,7 +117,9 @@ def TransactionUpdate(request: Request, id: int, transaction_data: schemas.Trans
 @limiter.limit("60/hour")
 def TransactionDelete(request: Request, id: int, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
 
-    transaction = find_transaction(id, user.id, db)
+    user_id = user.id
+
+    transaction = find_transaction(id, user_id, db)
 
     db.delete(transaction)
     db.commit()

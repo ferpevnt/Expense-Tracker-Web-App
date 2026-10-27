@@ -4,18 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Categories — Expense Tracker</title>
-    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/theme.css" />
+    <link rel="stylesheet" href="css/base.css" />
+    <link rel="stylesheet" href="css/components.css" />
+    <link rel="stylesheet" href="css/layout.css" />
     <link rel="stylesheet" href="css/categories.css" />
-
-    <!-- 
-        AUTO-GENERATED FRONTEND
-        This frontend was generated with AI assistance.
-        TODO: Rewrite manually in the future for learning purposes.
-    -->
   </head>
   <body>
     <div class="page-container">
-      <!-- ===== NAVIGATION ===== -->
+      <!-- ===== NAV ===== -->
       <nav class="navbar">
         <div class="nav-links">
           <a href="index.html">Dashboard</a>
@@ -24,11 +21,12 @@
           <a href="profile.html">Profile</a>
         </div>
         <div class="user-info">
-          <span>👤 <span id="user-name">User</span></span>
+          <span>👤 <span id="nav-user-name">User</span></span>
+          <button class="btn btn-secondary" id="logout-btn">Logout</button>
         </div>
       </nav>
 
-      <!-- ===== PAGE HEADER ===== -->
+      <!-- ===== HEADER ===== -->
       <div class="page-header">
         <h2>Categories</h2>
         <button class="btn btn-primary" id="add-btn">➕ Add Category</button>
@@ -55,7 +53,7 @@
 
       <!-- ===== GRID ===== -->
       <div class="categories-grid" id="categories-grid">
-        <!-- Cards rendered by JS -->
+        <!-- rendered by JS -->
       </div>
     </div>
 
