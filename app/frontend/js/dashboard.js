@@ -512,7 +512,6 @@ function renderCategoryChart(categories) {
     return;
   }
 
-  // сортуємо по спаданню
   filtered.sort(
     (a, b) => (parseFloat(b.total) || 0) - (parseFloat(a.total) || 0),
   );
@@ -584,7 +583,6 @@ function renderRepeatList(repeats) {
     return;
   }
 
-  // групуємо по title (щоб уникнути дублів з різними сумами)
   const map = new Map();
   repeats.forEach((r) => {
     const key = r.title;
@@ -651,7 +649,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (currentPeriod === "custom") {
       customDateInput.style.display = "inline-block";
-      // ставимо дефолт — сьогодні
       if (!customDateInput.value) {
         customDateInput.value = new Date().toISOString().slice(0, 10);
       }

@@ -141,7 +141,6 @@ async function loadCategoriesForSelect() {
     const filterSelect = document.getElementById("category-filter");
     const modalSelect = document.getElementById("category-input");
 
-    // зберігаємо перші опції ("All categories" / "No category")
     filterSelect.innerHTML = '<option value="">All categories</option>';
     modalSelect.innerHTML = '<option value="">— No category —</option>';
 

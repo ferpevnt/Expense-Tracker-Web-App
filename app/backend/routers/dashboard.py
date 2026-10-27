@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi import APIRouter, Depends, status, HTTPException, Request
 from sqlalchemy.orm import Session
 from database import database, schemas, models
 import sys
@@ -7,111 +7,139 @@ sys.path.append(str(Path(__file__).parent.parent))
 from security import auth_token, security
 from sqlalchemy import join, outerjoin, func, Float, case, cast
 from typing import Optional, List
-from datetime import datetime, timedelta, date as date_type, timezone
+from datetime import datetime, timedelta, date, timezone
 from dateutil.relativedelta import relativedelta
+import json
+from security.redis_client import redis_client
+from security.limiter import limiter
 
 router = APIRouter(tags=["Dashboard"], prefix="/dashboard")
 
-def filter_period_transactions(filtering, target_date, user_id, db):
-    transactions = db.query(
-        models.Transaction.title,
-        models.Transaction.description,
-        models.Transaction.summ,
-        models.Transaction.transaction_type,
-        models.Transaction.created_date,
-        models.Category.id,
-        models.Category.category,
-        models.Category.emoji
-    ).outerjoin(
-        models.Category, models.Category.id == models.Transaction.category_id
-    ).filter(
-        models.Transaction.user_id == user_id
-    )
-    
-    today = datetime.now(timezone.utc).date()
-
-    if filtering == "today":
-        transactions = transactions.filter(
-            func.date(models.Transaction.created_date) == today
-        )
-    elif filtering == "yesterday":
-        yesterday = today - relativedelta(days=1)
-        transactions = transactions.filter(
-            func.date(models.Transaction.created_date) == yesterday
-        )
-    elif filtering == "week":
-        week = today - relativedelta(days=today.weekday())
-        transactions = transactions.filter(
-            func.date(models.Transaction.created_date) >= week
-        )
-    elif filtering == "month":
-        month = today.replace(day=1)
-        transactions = transactions.filter(
-            func.date(models.Transaction.created_date) >= month
-        )
-    elif filtering == "date" and target_date is not None:
-        transactions = transactions.filter(
-            func.date(models.Transaction.created_date) == target_date
-        )
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Wrong filter"
-        )
-    return transactions
-
-@router.get("/transactions", status_code=200, response_model=List[schemas.DashboardTransactionsOut])
-def TransactionsLoad(user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
-
-    transactions = db.query(
-        models.Transaction.title,
-        models.Transaction.description,
-        models.Transaction.summ,
-        models.Transaction.transaction_type,
-        models.Transaction.created_date,
-        models.Category.category,
-        models.Category.emoji
-    ).outerjoin(
-        models.Category, models.Category.id == models.Transaction.category_id
-    ).filter(
-        models.Transaction.user_id == user.id
-    ).order_by(
-        models.Transaction.created_date.desc()   
-    ).limit(
-        10
-        ).all()
-
-    return transactions
-
-@router.get("/finances", status_code=200)
-def FinancesStatistics(filtering: str, target_date: Optional[str] = None, user: models.User = Depends(auth_token.get_current_user), db: Session = Depends(database.get_db)):
-    
-    parsed_date = None
-    if target_date:
-        parsed_date = date_type.fromisoformat(target_date)
-
-    days_map = {"today": 1, "yesterday": 1, "week": 7, "month": 30, "date": 1}
-    if filtering not in days_map:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Wrong filter"
-        )
-    days = days_map[filtering]
+@router.get("/total", status_code=200)
+@limiter.limit("30/minute")
+@limiter.limit("300/hour")
+def InfoTotal(request: Request, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
 
     user_id = user.id
-    transactions = filter_period_transactions(filtering, parsed_date, user_id, db)
 
+    total = db.query(
+        func.coalesce(
+            func.sum(models.Transaction.summ
+            ).filter(models.Transaction.transaction_type == True), 0
+            ).label("total_income"),
+
+        func.coalesce(
+            func.sum(models.Transaction.summ
+            ).filter(models.Transaction.transaction_type == False), 0
+            ).label("total_expense"),
+
+        func.count(models.Transaction.id
+        ).label("total_transaction")
+
+        ).filter(
+            models.Transaction.user_id == user_id
+        ).one()
+            
+    
+    total_income = float(total.total_income)
+    total_expense = float(total.total_expense)
+    total_transaction = int(total.total_transaction)
+    balance = total_income - total_expense
+
+    return {
+        "total_income": total_income,
+        "total_expense": total_expense,
+        "total_transaction": total_transaction,
+        "balance": balance
+    }
+
+@router.get("/transactions", status_code=200, response_model=List[schemas.TransactionOutTen])
+@limiter.limit("30/minute")
+@limiter.limit("300/hour")
+def TransactionsTen(request: Request, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
+
+    user_id = user.id
+
+    transactions_10 = db.query(
+        models.Transaction.title,
+        models.Transaction.description,
+        models.Transaction.summ,
+        models.Transaction.transaction_type,
+        models.Transaction.created_date,
+        models.Transaction.category_id,
+        models.Category.category,
+        models.Category.emoji
+    ).outerjoin(
+        models.Category, models.Transaction.category_id == models.Category.id
+    ).filter(
+        models.Transaction.user_id == user_id
+    ).order_by(
+        models.Transaction.created_date.desc()
+    ).limit(10
+    ).all()
+
+    return transactions_10
+
+@router.get("/finances", status_code=200)
+@limiter.limit("20/minute")
+@limiter.limit("200/hour")
+def FinancesStatistics(
+    request: Request,
+    filtering: str,
+    target_date: Optional[date] = None,
+    
+    user: models.User=Depends(auth_token.get_current_user),
+    db: Session=Depends(database.get_db)):
+
+    user_id = user.id
+
+    cache_key = f"dashboard:finances:{user_id}:{filtering}:{target_date}"
+
+    try:
+        cached = redis_client.get(cache_key)
+        if cached:
+            return json.loads(cached)
+    except Exception:
+        pass 
+
+    def filter_period(filtering, target_date, user_id, db):
+        
+        today = datetime.today().date()
+
+        if filtering == "date" and target_date:
+            filter_apply = func.date(models.Transaction.created_date) == target_date
+        elif filtering == "today":
+            filter_apply = func.date(models.Transaction.created_date) == today
+        elif filtering == "yesterday":
+            filter_apply = func.date(models.Transaction.created_date) == today - relativedelta(days=1)
+        elif filtering == "week":
+            filter_apply = func.date(models.Transaction.created_date) >= today - relativedelta(days=today.weekday())
+        elif filtering == "month":
+            filter_apply = func.date(models.Transaction.created_date) >= today.replace(day=1)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Wrong filter"
+            )
+        
+        transactions_filtered = db.query(
+            models.Transaction
+        ).filter(
+            filter_apply,
+            models.Transaction.user_id == user_id
+        )
+
+        return transactions_filtered
+
+    transactions = filter_period(filtering, target_date, user_id, db)
     transactions = transactions.filter(
         models.Transaction.transaction_type == False
     )
 
-    total = func.sum(models.Transaction.summ)
-    row = transactions.with_entities(
-        func.avg(models.Transaction.summ).label("avg_summ"),
-        func.max(models.Transaction.summ).label("max_summ"),
-        func.count(models.Transaction.summ).label("transaction_amount"),
-        total.label("transaction_whole_summ"),
-    ).one()
+    expenses_info = transactions.with_entities(
+        func.coalesce(
+            func.sum(models.Transaction.summ), 0
+            ).label("transaction_whole_sum"),
 
     whole_summ = row.transaction_whole_summ or 0
     avg_summ = row.avg_summ or 0
@@ -153,178 +181,161 @@ def FinancesStatistics(filtering: str, target_date: Optional[str] = None, user: 
     
     categories_top_3 = categories_info[:3]
 
-    return {
-        "expenses_info": expenses_info,
-        "categories_top_3": categories_top_3,
-        "categories_expense_percent": categories_info,
+    most_expensive_day = transactions.with_entities(
+        func.date(models.Transaction.created_date
+        ).label("day"),
+        func.coalesce(
+            func.sum(models.Transaction.summ), 0
+        ).label("total_day_sum")
+    ).group_by(
+        func.date(models.Transaction.created_date)
+    ).order_by(
+        text("total_day_sum DESC")
+    ).first()
+
+    result = {
+    "expenses_info": {
+        "transaction_whole_sum": total_sum,
+        "avg_sum": float(expenses_info.avg_sum),
+        "max_sum": float(expenses_info.max_sum),
+        "transaction_amount": int(expenses_info.transaction_amount),
+        "avg_per_day": round(avg_per_day, 2),
+    },
+    "forecast_month": round(forecast_month, 2),
+    "max_transaction": {
+        "title": max_transaction.title,
+        "description": max_transaction.description,
+        "summ": float(max_transaction.summ),
+        "category": max_transaction.category,
+        "emoji": max_transaction.emoji,
+    } if max_transaction else None,
+    "most_expensive_day": {
+        "date": str(most_expensive_day.day),
+        "total": float(most_expensive_day.total_day_sum),
+    } if most_expensive_day else None,
+    "categories_top_3": categories_top_3,
+    "categories_expense_percent": categories_expense_percent,
     }
 
-@router.get("/graphs", status_code=200,response_model=schemas.GraphsData)
+    try:
+        redis_client.setex(cache_key, 60, json.dumps(result, default=str))
+    except Exception:
+        pass
+    return result
+
+@router.get("/graphs", status_code=200, response_model=schemas.GraphsData)
+@limiter.limit("20/minute")
+@limiter.limit("200/hour")
 def GraphsData(
-    date_start: date_type,
-    date_end: Optional[date_type] = None,
-    previous_date_start: Optional[date_type] = None,
-    previous_date_end: Optional[date_type] = None,
+    request: Request,
+    date_start: date,
+    date_end: Optional[date] = None,
+    previous_date_start: Optional[date] = None,
+    previous_date_end: Optional[date] = None,
     user: models.User=Depends(auth_token.get_current_user),
     db: Session=Depends(database.get_db)):
 
     user_id = user.id
 
-    def expenses_days_weekdays(date_start, date_end, user_id, db):
-        if date_end:
+    cache_key = f"dashboard:graphs:{user_id}:{date_start}:{date_end}:{previous_date_start}:{previous_date_end}"
 
-            transactions_more_4 = db.query(
-                models.Transaction.title,
-                func.count(models.Transaction.title)
-            ).filter(
-                models.Transaction.user_id == user_id,
-                models.Transaction.created_date >= date_start,
-                models.Transaction.created_date <= date_end,
-                models.Transaction.transaction_type == False
-                ).group_by(
-                models.Transaction.title
-            ).having(
-                func.count(models.Transaction.title) >= 4
-            ).all()
+    try:
+        cached = redis_client.get(cache_key)
+        if cached:
+            return json.loads(cached)
+    except Exception:
+        pass
 
-            expenses_days = db.query(
-                models.Transaction.created_date,
-                func.sum(models.Transaction.summ).label("day_expenses")
-            ).filter(
-                models.Transaction.user_id == user_id,
-                models.Transaction.created_date >= date_start,
-                models.Transaction.created_date <= date_end,
-                models.Transaction.transaction_type == False
-            ).group_by(
-                models.Transaction.created_date
-            ).all()
+    def date_check(date_start, date_end, user_id, db):
+        
+        filters = [
+            models.Transaction.user_id == user_id,
+            models.Transaction.transaction_type == False,  
+            models.Transaction.created_date >= date_start]   
 
-            expenses_week_days = db.query(
-                func.to_char(models.Transaction.created_date, 'Day').label("week_day"),
-                func.sum(models.Transaction.summ).label("weekday_expenses")
-            ).filter(
-                models.Transaction.user_id == user_id,
-                models.Transaction.created_date >= date_start,
-                models.Transaction.created_date <= date_end,
-                models.Transaction.transaction_type == False
-            ).group_by(
-                func.to_char(models.Transaction.created_date, 'Day').label("week_day")
-            ).all()
+        if date_end:        
+            filters.append(models.Transaction.created_date <= date_end)
+        
+        transactions_filtered = db.query(
+            models.Transaction
+        ).filter(
+            *filters
+        )
+        return transactions_filtered
 
+    def expenses_days(transactions_filtered, days):
+        if days == "days":
+            filtering = func.date(models.Transaction.created_date).label("created_date")
+            sum_label = "day_expenses"            
+        elif days == "weekdays":
+            filtering = func.trim(
+                func.to_char(models.Transaction.created_date, 'Day')
+            ).label("week_day")
+            sum_label = "weekday_expenses"        
         else:
-            expenses_days = db.query(
-                models.Transaction.created_date,
-                func.sum(models.Transaction.summ).label("day_expenses")
-            ).filter(
-                models.Transaction.user_id == user_id,
-                models.Transaction.created_date >= date_start,
-                models.Transaction.transaction_type == False
-            ).group_by(
-                models.Transaction.created_date
-            ).all()
+            raise ValueError(f"Unknown period: {days}")
 
-            expenses_week_days = db.query(
-                func.to_char(models.Transaction.created_date, 'Day').label("week_day"),
-                func.sum(models.Transaction.summ).label("weekday_expenses")
-            ).filter(
-                models.Transaction.user_id == user_id,
-                models.Transaction.created_date >= date_start,
-                models.Transaction.transaction_type == False
-            ).group_by(
-                func.to_char(models.Transaction.created_date, 'Day').label("week_day")
-            ).all()
+        return transactions_filtered.with_entities(
+            filtering,
+            func.sum(models.Transaction.summ).label(sum_label),
+        ).group_by(
+            filtering,
+        ).all()
 
-            transactions_more_4 = db.query(
-                models.Transaction.title,
-                func.count(models.Transaction.title)
-            ).filter(
-                models.Transaction.user_id == user_id,
-                models.Transaction.created_date >= date_start,
-                models.Transaction.transaction_type == False
-                ).group_by(
-                models.Transaction.title
-            ).having(
-                func.count(models.Transaction.title) >= 4
-            ).all()
+    def repeat_transactions(transactions_filtered):
 
-        titles_list = [t.title for t in transactions_more_4]
-        repeating_transactions = db.query(
-                models.Transaction.title,
-                models.Transaction.summ,
-                models.Category.category,
-                models.Category.emoji
-            ).outerjoin(
-                models.Category, 
-                models.Category.id == models.Transaction.category_id
-            ).filter(
-                models.Transaction.transaction_type == False,
-                models.Transaction.user_id == user_id,
-                models.Transaction.title.in_(titles_list)
-            ).all()
+        transactions_repeated = transactions_filtered.with_entities(
+            models.Transaction.title,
+            func.avg(models.Transaction.summ).label("summ"),
+            models.Category.category,
+            models.Category.emoji
+        ).outerjoin(
+            models.Category,
+            models.Transaction.category_id == models.Category.id
+        ).group_by(
+            models.Transaction.title,
+            models.Category.category,
+            models.Category.emoji
+        ).having(
+            func.count(models.Transaction.title) >= 4
+        ).all()
 
-        return expenses_days, expenses_week_days, repeating_transactions
+        return transactions_repeated
 
-    expenses_days, expenses_week_days, repeating_transactions = expenses_days_weekdays(date_start, date_end, user_id, db)
+    transactions_current = date_check(date_start, date_end, user_id, db)
+    transactions_expenses_days = expenses_days(transactions_current, "days")
+    transactions_expenses_week_days = expenses_days(transactions_current, "weekdays") 
+    transactions_repeated = repeat_transactions(transactions_current)
 
     if previous_date_start and previous_date_end:
-        previous_expenses_days, previous_expenses_week_days, previous_repeating_transactions = expenses_days_weekdays(previous_date_start, previous_date_end, user_id, db)
-        
-        return {
-            "current": {
-                "days": expenses_days,
-                "week_days": expenses_week_days,
-                "repeat_transactions": repeating_transactions
-            },
-            "previous": {
-                "days": previous_expenses_days,
-                "week_days": previous_expenses_week_days,
-                "repeat_transactions": previous_repeating_transactions
-            }
-        }
+        transactions_previous = date_check(previous_date_start, previous_date_end, user_id, db)
+        transactions_previous_expenses_days = expenses_days(transactions_previous, "days")
+        transactions_previous_expenses_week_days = expenses_days(transactions_previous, "weekdays")
+        transactions_previous_repeated = repeat_transactions(transactions_previous)
 
     elif previous_date_start or previous_date_end:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail= "Both fields must be either empty or not")
-    
-    return {
-        "current": {
-            "days": expenses_days,
-            "week_days": expenses_week_days,
-            "repeat_transactions": repeating_transactions
+            detail="Wrong filter"
+        )            
+    result = {
+    "current": {
+        "days": [dict(d._mapping) for d in transactions_expenses_days],
+        "week_days": [dict(w._mapping) for w in transactions_expenses_week_days],
+        "repeat_transactions": [dict(r._mapping) for r in transactions_repeated],
         }
     }
 
-@router.get("/total", status_code=200)
-def BalanceExpenses(user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
+    if previous_date_start and previous_date_end:
+        result["previous"] = {
+            "days": [dict(d._mapping) for d in transactions_previous_expenses_days],
+            "week_days": [dict(w._mapping) for w in transactions_previous_expenses_week_days],
+            "repeat_transactions": [dict(r._mapping) for r in transactions_previous_repeated],
+        }
 
-    user_id = user.id
+    try:
+        redis_client.setex(cache_key, 60, json.dumps(result, default=str))
+    except Exception:
+        pass
 
-    total = db.query(
-        func.coalesce(func.sum(models.Transaction.summ), 0)        
-    ).filter(
-        models.Transaction.user_id == user_id
-    )
-
-    def total_count(total, t_type):
-        total = total.filter(
-            models.Transaction.transaction_type == t_type
-        ).scalar()
-        return total
-    
-    total_income = total_count(total, True)
-    total_expense = total_count(total, False)
-
-    total_transaction = db.query(
-        func.count(models.Transaction.id)
-    ).filter(
-        models.Transaction.user_id == user_id
-    ).scalar()
-
-    return {
-        "balance": total_income - total_expense,
-        "total_income": total_income,
-        "total_expense": total_expense,
-        "total_transaction": total_transaction
-    }
-    
+    return result

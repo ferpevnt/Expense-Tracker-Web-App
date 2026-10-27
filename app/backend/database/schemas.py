@@ -86,8 +86,8 @@ class TransactionOut(BaseModel):
     summ: Union[int, float]
     transaction_type: bool
     created_date: datetime
+    category: Union[str, None]
     category_id: Union[int, None]
-    category: Union[str, None] 
     emoji: Union[str, None]
 
 # ===== PROFILE =====
@@ -105,19 +105,19 @@ class PasswordUpdate(BaseModel):
         return self 
         
 # ===== DASHBOARD =====
-class DashboardTransactionsOut(BaseModel):
+class TransactionOutTen(BaseModel):
     title: str
-    description: Optional[str] = None
+    description: Union[str, None]
     summ: Union[int, float]
     transaction_type: bool
     created_date: datetime
-    category: Optional[str] = None
-    emoji: Optional[str] = None
-
+    category: Union[str, None]
+    category_id: Union[int, None]
+    emoji: Union[str, None]
+    
 class DayExpense(BaseModel):
     created_date: datetime
     day_expenses: float
-
 
 class WeekDayExpense(BaseModel):
     week_day: str
@@ -134,12 +134,10 @@ class GraphsCurrent(BaseModel):
     week_days: List[WeekDayExpense]
     repeat_transactions: List[RepeatingTransaction]
 
-
 class GraphsPrevious(BaseModel):
     days: List[DayExpense]
     week_days: List[WeekDayExpense]
     repeat_transactions: List[RepeatingTransaction]
-
 
 class GraphsData(BaseModel):
     current: GraphsCurrent

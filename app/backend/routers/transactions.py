@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, HTTPException, Response
+from fastapi import APIRouter, Depends, status, HTTPException, Response, Request
 from sqlalchemy.orm import Session, joinedload
 from database import database, schemas, models
 import sys
@@ -9,12 +9,18 @@ from sqlalchemy import join, outerjoin, func, text
 from typing import Optional, List, Union
 from datetime import datetime, timedelta, date
 from dateutil.relativedelta import relativedelta
+from security.limiter import limiter
 
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
 
 def find_transaction(id, user_id, db):
-    
-    transaction = db.query(models.Transaction).filter(models.Transaction.user_id == user_id, models.Transaction.id == id).first()
+
+    transaction = db.query(
+        models.Transaction
+        ).filter(
+            models.Transaction.user_id == user_id,
+            models.Transaction.id == id
+            ).first()
 
     if transaction == None:
         raise HTTPException(
@@ -24,7 +30,8 @@ def find_transaction(id, user_id, db):
     return transaction
 
 @router.post("/transaction", status_code=201, response_model=schemas.TransactionOut)
-def TransactionCreate(transaction_data: schemas.TransactionCreate, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
+@limiter.limit("100/hour")
+def TransactionCreate(request: Request, transaction_data: schemas.TransactionCreate, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
     
     new_transaction = models.Transaction(
         title = transaction_data.title,
@@ -39,7 +46,7 @@ def TransactionCreate(transaction_data: schemas.TransactionCreate, user: models.
     db.commit()
     db.refresh(new_transaction)
 
-    #transaction with added category id, name, emoji
+    #transaction with added category, name, emoji
     transaction = db.query(
         models.Transaction.id,
         models.Transaction.title,
@@ -47,8 +54,8 @@ def TransactionCreate(transaction_data: schemas.TransactionCreate, user: models.
         models.Transaction.summ,
         models.Transaction.transaction_type,
         models.Transaction.created_date,
-        models.Transaction.category_id,
         models.Category.category,
+        models.Transaction.category_id,
         models.Category.emoji
     ).outerjoin(
         models.Category, models.Category.id == models.Transaction.category_id
@@ -60,10 +67,12 @@ def TransactionCreate(transaction_data: schemas.TransactionCreate, user: models.
     return transaction
 
 @router.put("/transaction/{id}", status_code=200, response_model=schemas.TransactionOut)
-def TransactionUpdate(id: int, transaction_data: schemas.TransactionUpdate, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
+@limiter.limit("100/hour")
+def TransactionUpdate(request: Request, id: int, transaction_data: schemas.TransactionUpdate, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
     
+    user_id = user.id
 
-    transaction = find_transaction(id, user.id, db)
+    transaction = find_transaction(id, user_id, db)
     
     #optional update(can be only 1 field)(422 error if no values)
     if transaction_data.title is not None:
@@ -85,7 +94,7 @@ def TransactionUpdate(id: int, transaction_data: schemas.TransactionUpdate, user
     
     db.commit()
 
-    #transaction with added category id, name, emoji
+    #transaction with added category, name, emoji
     transaction = db.query(
         models.Transaction.id,
         models.Transaction.title,
@@ -93,8 +102,8 @@ def TransactionUpdate(id: int, transaction_data: schemas.TransactionUpdate, user
         models.Transaction.summ,
         models.Transaction.transaction_type,
         models.Transaction.created_date,
-        models.Transaction.category_id,
         models.Category.category,
+        models.Transaction.category_id,
         models.Category.emoji
     ).outerjoin(
         models.Category, models.Category.id == models.Transaction.category_id
@@ -105,20 +114,23 @@ def TransactionUpdate(id: int, transaction_data: schemas.TransactionUpdate, user
     return transaction
 
 @router.delete("/transaction/{id}", status_code=204)
-def TransactionDelete(id: int, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
+@limiter.limit("60/hour")
+def TransactionDelete(request: Request, id: int, user: models.User=Depends(auth_token.get_current_user), db: Session=Depends(database.get_db)):
 
-    transaction = find_transaction(id, user.id, db)
+    user_id = user.id
+
+    transaction = find_transaction(id, user_id, db)
 
     db.delete(transaction)
     db.commit()
     return
 
-@router.get("/filtered", status_code=200, response_model=schemas.TransactionsOut)
+@router.get("/filtered", status_code=200, response_model=List[schemas.TransactionOut])
+@limiter.limit("200/minute")
 def TransactionsLoad(
-                    search: Optional[str] = None,
+                    request: Request,
 
-                    page: int = 1,
-                    
+                    page: int,
                     
                     search: Optional[str] = None,
                     t_type: Optional[bool] = None,
@@ -141,7 +153,7 @@ def TransactionsLoad(
             status_code=400,
             detail="Page must be greater than 0")
 
-    #user transactions + categories(id, name, emoji)
+    #user transactions + categories(name, emoji)
     transactions = db.query(
         models.Transaction.id,
         models.Transaction.title,
@@ -149,8 +161,8 @@ def TransactionsLoad(
         models.Transaction.summ,
         models.Transaction.transaction_type,
         models.Transaction.created_date,
-        models.Transaction.category_id,
         models.Category.category,
+        models.Transaction.category_id,
         models.Category.emoji
     ).outerjoin(
         models.Category, models.Category.id == models.Transaction.category_id
