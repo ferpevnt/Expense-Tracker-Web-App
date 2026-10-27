@@ -4,15 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Transactions — Expense Tracker</title>
-    <link rel="stylesheet" href="css/theme.css" />
-    <link rel="stylesheet" href="css/base.css" />
-    <link rel="stylesheet" href="css/components.css" />
-    <link rel="stylesheet" href="css/layout.css" />
+    <link rel="stylesheet" href="css/style.css" />
     <link rel="stylesheet" href="css/transactions.css" />
+    <link rel="stylesheet" href="css/categories.css" />
+
+    <!-- 
+        AUTO-GENERATED FRONTEND
+        This frontend was generated with AI assistance.
+        TODO: Rewrite manually in the future for learning purposes.
+    -->
   </head>
   <body>
     <div class="page-container">
-      <!-- ===== NAV ===== -->
+      <!-- ===== NAVIGATION ===== -->
       <nav class="navbar">
         <div class="nav-links">
           <a href="index.html">Dashboard</a>
@@ -21,12 +25,11 @@
           <a href="profile.html">Profile</a>
         </div>
         <div class="user-info">
-          <span>👤 <span id="nav-user-name">User</span></span>
-          <button class="btn btn-secondary" id="logout-btn">Logout</button>
+          <span>👤 <span id="user-name">User</span></span>
         </div>
       </nav>
 
-      <!-- ===== HEADER ===== -->
+      <!-- ===== PAGE HEADER ===== -->
       <div class="page-header">
         <h2>Transactions</h2>
         <button class="btn btn-primary" id="add-btn">➕ Add Transaction</button>
@@ -44,8 +47,8 @@
           />
           <select id="type-filter">
             <option value="">All types</option>
-            <option value="income">💰 Income</option>
             <option value="expense">💸 Expense</option>
+            <option value="income">💰 Income</option>
           </select>
           <select id="category-filter">
             <option value="">All categories</option>
@@ -83,7 +86,7 @@
 
       <!-- ===== LIST ===== -->
       <div class="transactions-list" id="transactions-list">
-        <!-- rendered by JS -->
+        <!-- Items rendered by JS -->
       </div>
 
       <!-- ===== PAGINATION ===== -->
@@ -96,6 +99,7 @@
         <h3 id="modal-title">Add Transaction</h3>
         <div id="modal-message" class="message"></div>
 
+        <!-- Type toggle -->
         <div class="form-group">
           <label>Type</label>
           <div class="type-toggle" id="type-toggle">
@@ -137,9 +141,9 @@
         </div>
 
         <div class="form-group">
-          <label for="description-input">
-            Description <span class="optional">(optional)</span>
-          </label>
+          <label for="description-input"
+            >Description <span class="optional">(optional)</span></label
+          >
           <textarea
             id="description-input"
             placeholder="Add a note..."

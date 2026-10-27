@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 from security import auth_token, security
-from sqlalchemy import join, outerjoin, func, Float, case, cast, text
+from sqlalchemy import join, outerjoin, func, Float, case, cast
 from typing import Optional, List
 from datetime import datetime, timedelta, date, timezone
 from dateutil.relativedelta import relativedelta
@@ -141,74 +141,45 @@ def FinancesStatistics(
             func.sum(models.Transaction.summ), 0
             ).label("transaction_whole_sum"),
 
-        func.coalesce(
-            func.avg(models.Transaction.summ), 0
-            ).label("avg_sum"),
+    whole_summ = row.transaction_whole_summ or 0
+    avg_summ = row.avg_summ or 0
+    max_summ = row.max_summ or 0
+    count = row.transaction_amount or 0
+    avg_per_day = (whole_summ / days) if days else 0
 
-        func.coalesce(
-            func.max(models.Transaction.summ), 0
-            ).label("max_sum"),
-
-        func.count(
-            models.Transaction.id
-            ).label("transaction_amount"),        
-    ).one()
-
-    today = datetime.today().date()
-    if filtering in ("today", "yesterday", "date"):
-        days = 1
-    elif filtering == "week":
-        days = today.weekday() + 1
-    elif filtering == "month":
-        days = today.day
-    else:
-        days = 1   
-
-    total_sum = float(expenses_info.transaction_whole_sum)
-    avg_per_day = total_sum / days if days else 0.0
+    expenses_info = {
+        "avg_summ": avg_summ,
+        "max_summ": max_summ,
+        "transaction_amount": count,
+        "transaction_whole_summ": whole_summ,
+        "avg_per_day": avg_per_day,
+    }
+    categories_total = func.sum(models.Transaction.summ).label("total")
     
-    categories_expense = transactions.with_entities(
+    rows = transactions.with_entities(
         models.Category.id,
         models.Category.category,
         models.Category.emoji,
-        func.coalesce(
-            func.sum(models.Transaction.summ), 0
-            ).label("total")
-        ).outerjoin(
-            models.Category, models.Transaction.category_id == models.Category.id,
-        ).group_by(
-            models.Category.id
-        ).order_by(
-            text("total DESC")
-        ).all()
-
-    categories_expense_percent = []
-    for c in categories_expense:
-        categorie_total = float(c.total)
-        percent = (categorie_total * 100 / total_sum) if total_sum > 0 else 0.0
-        categories_expense_percent.append({
-            "id": c.id,
-            "category": c.category,
-            "emoji": c.emoji,
-            "total": categorie_total,
-            "percent": round(percent, 2),
-        })
-
-    categories_top_3 = categories_expense_percent[:3]
-
-    max_transaction = transactions.with_entities(
-        models.Transaction.title,
-        models.Transaction.description,
-        models.Transaction.summ,   
-        models.Category.category,
-        models.Category.emoji
-    ).outerjoin(
-        models.Category, models.Category.id == models.Transaction.category_id
+        categories_total,
+    ).group_by(
+        models.Category.id
     ).order_by(
-        models.Transaction.summ.desc()
-    ).first()
-
-    forecast_month = avg_per_day * 30
+        categories_total.desc()
+    ).all()
+    
+    categories_info = []
+    for r in rows:
+        total_val = float(r.total) if r.total is not None else 0.0
+        percent = (total_val * 100 / float(whole_summ)) if whole_summ > 0 else 0.0
+        categories_info.append({
+            "id": r.id,
+            "category": r.category,
+            "emoji": r.emoji,
+            "total": total_val,
+            "percent": percent,
+        })
+    
+    categories_top_3 = categories_info[:3]
 
     most_expensive_day = transactions.with_entities(
         func.date(models.Transaction.created_date

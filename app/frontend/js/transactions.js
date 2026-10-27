@@ -2,13 +2,15 @@
 let currentPage = 1;
 let currentEditId = null;
 let currentType = false; // false = expense, true = income
+let categoriesCache = [];
 let transactionsCache = {};
 const PER_PAGE = 15;
 
 // ===== HELPERS =====
 function formatSumm(n) {
   const num = parseFloat(n);
-  return isNaN(num) ? "0.00" : num.toFixed(2);
+  if (isNaN(num)) return "0.00";
+  return num.toFixed(2);
 }
 
 function formatDate(iso) {
@@ -49,15 +51,19 @@ function renderTransactions(transactions) {
   }
 
   transactions.forEach((t) => {
-    const isIncome = !!t.transaction_type;
-    const sign = isIncome ? "+" : "−";
-    const emojiDisplay = t.emoji || (isIncome ? "💰" : "💸");
+    const card = document.createElement("div");
+    card.className =
+      "transaction-item " + (t.transaction_type ? "income" : "expense");
+
+    const sign = t.transaction_type ? "+" : "−";
+    const dateStr = formatDate(t.created_date);
+
     const catDisplay = t.category
       ? `${t.emoji || "📁"} ${escapeHtml(t.category)}`
       : `<span class="no-category">No category</span>`;
 
-    const card = document.createElement("div");
-    card.className = `transaction-item ${isIncome ? "income" : "expense"}`;
+    const emojiDisplay = t.emoji || (t.transaction_type ? "💰" : "💸");
+
     card.innerHTML = `
       <div class="transaction-emoji">${emojiDisplay}</div>
       <div class="transaction-main">
@@ -65,35 +71,31 @@ function renderTransactions(transactions) {
         <div class="transaction-meta">
           <span>${catDisplay}</span>
           <span>•</span>
-          <span>${formatDate(t.created_date)}</span>
+          <span>${dateStr}</span>
         </div>
-        ${
-          t.description
-            ? `<div class="transaction-desc">${escapeHtml(t.description)}</div>`
-            : ""
-        }
+        ${t.description ? `<div class="transaction-desc">${escapeHtml(t.description)}</div>` : ""}
       </div>
-      <div class="transaction-amount ${isIncome ? "income" : "expense"}">
+      <div class="transaction-amount ${t.transaction_type ? "income" : "expense"}">
         ${sign}${formatSumm(t.summ)}
       </div>
       <div class="transaction-actions">
-        <button class="btn-icon" data-action="edit" data-id="${t.id}">✏️</button>
-        <button class="btn-icon" data-action="delete" data-id="${t.id}">🗑️</button>
+        <button class="btn-icon" data-action="edit" data-id="${t.id}" title="Edit">✏️</button>
+        <button class="btn-icon" data-action="delete" data-id="${t.id}" title="Delete">🗑️</button>
       </div>
     `;
     list.appendChild(card);
   });
 
-  // Delegation
+  // Event delegation for edit/delete
   list.querySelectorAll('button[data-action="edit"]').forEach((btn) => {
-    btn.addEventListener("click", () => {
-      openEditModal(parseInt(btn.dataset.id, 10));
-    });
+    btn.addEventListener("click", () =>
+      openEditModal(parseInt(btn.dataset.id, 10)),
+    );
   });
   list.querySelectorAll('button[data-action="delete"]').forEach((btn) => {
-    btn.addEventListener("click", () => {
-      confirmDelete(parseInt(btn.dataset.id, 10));
-    });
+    btn.addEventListener("click", () =>
+      confirmDelete(parseInt(btn.dataset.id, 10)),
+    );
   });
 }
 
@@ -104,7 +106,6 @@ function renderPagination(count) {
 
   const prevBtn = document.createElement("button");
   prevBtn.textContent = "← Prev";
-  prevBtn.className = "btn btn-secondary";
   prevBtn.disabled = currentPage === 1;
   prevBtn.addEventListener("click", () => {
     if (currentPage > 1) {
@@ -119,7 +120,6 @@ function renderPagination(count) {
 
   const nextBtn = document.createElement("button");
   nextBtn.textContent = "Next →";
-  nextBtn.className = "btn btn-secondary";
   nextBtn.disabled = count < PER_PAGE;
   nextBtn.addEventListener("click", () => {
     currentPage++;
@@ -131,11 +131,12 @@ function renderPagination(count) {
   pag.appendChild(nextBtn);
 }
 
-// ===== LOAD CATEGORIES =====
+// ===== LOAD CATEGORIES (для select у фільтрі та модалці) =====
 async function loadCategoriesForSelect() {
-  try {
-    const { response, data } = await apiRequest("/categories/");
-    if (response.status !== 200) return;
+  const { response, data } = await apiRequest("/categories/");
+
+  if (response.status === 200) {
+    categoriesCache = data;
 
     const filterSelect = document.getElementById("category-filter");
     const modalSelect = document.getElementById("category-input");
@@ -154,8 +155,9 @@ async function loadCategoriesForSelect() {
       opt2.textContent = `${cat.emoji} ${cat.category}`;
       modalSelect.appendChild(opt2);
     });
-  } catch (error) {
-    console.error("Failed to load categories", error);
+  } else if (response.status === 401) {
+    clearToken();
+    window.location.href = "login.html";
   }
 }
 
@@ -191,28 +193,24 @@ async function loadTransactions() {
   const sort = document.getElementById("sort-select").value;
   if (sort) params.append("sort", sort);
 
-  try {
-    const { response, data } = await apiRequest(
-      `/transactions/filtered?${params.toString()}`,
-    );
+  const { response, data } = await apiRequest(
+    `/transactions/filtered?${params.toString()}`,
+  );
 
-    if (response.status === 200) {
-      transactionsCache = {};
-      data.forEach((t) => {
-        transactionsCache[t.id] = t;
-      });
-      renderTransactions(data);
-      renderPagination(data.length);
-    } else if (response.status === 401) {
-      clearToken();
-      window.location.href = "login.html";
-    } else if (response.status === 400) {
-      showMessage("message", data?.detail || "Wrong filter", "error");
-    } else {
-      showMessage("message", "Failed to load transactions", "error");
-    }
-  } catch (error) {
-    showMessage("message", "Network error", "error");
+  if (response.status === 200) {
+    transactionsCache = {};
+    data.forEach((t) => {
+      transactionsCache[t.id] = t;
+    });
+    renderTransactions(data);
+    renderPagination(data.length);
+  } else if (response.status === 401) {
+    clearToken();
+    window.location.href = "login.html";
+  } else if (response.status === 400) {
+    showMessage("message", data?.detail || "Wrong filter", "error");
+  } else {
+    showMessage("message", "Failed to load transactions", "error");
   }
 }
 
@@ -237,7 +235,6 @@ function openAddModal() {
   document.getElementById("modal-save-btn").textContent = "Create";
   hideMessage("modal-message");
   document.getElementById("modal-overlay").classList.add("show");
-  document.getElementById("title-input").focus();
 }
 
 function openEditModal(id) {
@@ -255,7 +252,6 @@ function openEditModal(id) {
   document.getElementById("modal-save-btn").textContent = "Save";
   hideMessage("modal-message");
   document.getElementById("modal-overlay").classList.add("show");
-  document.getElementById("title-input").focus();
 }
 
 function closeModal() {
@@ -263,7 +259,7 @@ function closeModal() {
   currentEditId = null;
 }
 
-// ===== SAVE =====
+// ===== SAVE (CREATE / UPDATE) =====
 async function saveTransaction() {
   hideMessage("modal-message");
 
@@ -272,6 +268,7 @@ async function saveTransaction() {
   const categoryVal = document.getElementById("category-input").value;
   const description = document.getElementById("description-input").value.trim();
 
+  // Validation
   if (!title) {
     showMessage("modal-message", "Title is required", "error");
     return;
@@ -295,6 +292,7 @@ async function saveTransaction() {
     let response, data;
 
     if (currentEditId === null) {
+      // CREATE
       ({ response, data } = await apiRequest("/transactions/transaction", {
         method: "POST",
         body: {
@@ -306,6 +304,7 @@ async function saveTransaction() {
         },
       }));
     } else {
+      // UPDATE
       ({ response, data } = await apiRequest(
         `/transactions/transaction/${currentEditId}`,
         {
@@ -329,15 +328,13 @@ async function saveTransaction() {
     } else if (response.status === 422) {
       const detail = data?.detail?.[0]?.msg || "Validation error";
       showMessage("modal-message", detail, "error");
-    } else if (response.status === 429) {
-      showMessage("modal-message", "Too many attempts. Try later.", "error");
     } else if (response.status === 401) {
       clearToken();
       window.location.href = "login.html";
     } else {
       showMessage("modal-message", "Something went wrong", "error");
     }
-  } catch (error) {
+  } catch (err) {
     showMessage("modal-message", "Network error", "error");
   } finally {
     saveBtn.disabled = false;
@@ -357,25 +354,19 @@ async function confirmDelete(id) {
     return;
   }
 
-  try {
-    const { response } = await apiRequest(`/transactions/transaction/${id}`, {
-      method: "DELETE",
-    });
+  const { response } = await apiRequest(`/transactions/transaction/${id}`, {
+    method: "DELETE",
+  });
 
-    if (response.status === 204) {
-      await loadTransactions();
-    } else if (response.status === 404) {
-      showMessage("message", "Transaction not found", "error");
-    } else if (response.status === 429) {
-      showMessage("message", "Too many attempts. Try later.", "error");
-    } else if (response.status === 401) {
-      clearToken();
-      window.location.href = "login.html";
-    } else {
-      showMessage("message", "Failed to delete transaction", "error");
-    }
-  } catch (error) {
-    showMessage("message", "Network error", "error");
+  if (response.status === 204) {
+    await loadTransactions();
+  } else if (response.status === 404) {
+    showMessage("message", "Transaction not found", "error");
+  } else if (response.status === 401) {
+    clearToken();
+    window.location.href = "login.html";
+  } else {
+    showMessage("message", "Failed to delete transaction", "error");
   }
 }
 
@@ -391,12 +382,6 @@ function resetFilters() {
   document.getElementById("end-date").value = "";
   currentPage = 1;
   loadTransactions();
-}
-
-// ===== LOGOUT =====
-function handleLogout() {
-  clearToken();
-  window.location.href = "login.html";
 }
 
 // ===== DEBOUNCE =====
@@ -416,7 +401,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
-  document.getElementById("nav-user-name").textContent =
+  document.getElementById("user-name").textContent =
     localStorage.getItem("user_name") || "User";
 
   // Type toggle
@@ -426,6 +411,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   });
 
+  // Toolbar events
   document
     .getElementById("search-input")
     .addEventListener("input", debounceSearch);
@@ -448,6 +434,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   document
     .getElementById("reset-filters")
     .addEventListener("click", resetFilters);
+
+  // Modal
   document.getElementById("add-btn").addEventListener("click", openAddModal);
   document
     .getElementById("modal-save-btn")
@@ -458,8 +446,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("modal-overlay").addEventListener("click", (e) => {
     if (e.target.id === "modal-overlay") closeModal();
   });
-  document.getElementById("logout-btn").addEventListener("click", handleLogout);
 
+  // Load initial data
   await loadCategoriesForSelect();
   await loadTransactions();
 });

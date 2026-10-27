@@ -1,14 +1,14 @@
 /* ===== FILTERS PANEL ===== */
 .filters-panel {
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-md);
-  margin-bottom: var(--space-lg);
+  background: #f8f9fb;
+  border: 1px solid #e0e6ed;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 24px;
 }
 
 .filters-panel .toolbar {
-  margin-bottom: var(--space-md);
+  margin-bottom: 12px;
 }
 
 .filters-panel .toolbar:last-child {
@@ -17,52 +17,65 @@
 
 .filters-panel input[type="date"],
 .filters-panel input[type="number"] {
-  flex: 0 1 auto;
-  min-width: 140px;
+  padding: 10px 14px;
+  border: 2px solid #e0e6ed;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+  background: #fff;
 }
 
-/* ===== LIST ===== */
+.filters-panel input[type="date"]:focus,
+.filters-panel input[type="number"]:focus {
+  border-color: #667eea;
+}
+
+/* ===== TRANSACTIONS LIST ===== */
 .transactions-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
+  gap: 10px;
 }
 
 .transaction-item {
   display: flex;
   align-items: center;
-  gap: var(--space-md);
-  padding: var(--space-md) var(--space-lg);
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-left: 4px solid var(--border);
-  border-radius: var(--radius);
-  transition: all var(--transition);
+  gap: 16px;
+  padding: 14px 18px;
+  background: #fff;
+  border: 2px solid #e0e6ed;
+  border-radius: 12px;
+  transition:
+    transform 0.15s,
+    box-shadow 0.2s,
+    border-color 0.2s;
 }
 
 .transaction-item:hover {
-  border-color: var(--border-hover);
   transform: translateY(-1px);
+  border-color: #667eea;
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.12);
 }
 
 .transaction-item.income {
-  border-left-color: var(--success);
+  border-left: 4px solid #27ae60;
 }
 
 .transaction-item.expense {
-  border-left-color: var(--error);
+  border-left: 4px solid #e74c3c;
 }
 
 .transaction-emoji {
-  flex-shrink: 0;
+  font-size: 28px;
   width: 44px;
   height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
-  background: var(--bg-secondary);
-  border-radius: var(--radius);
+  background: #f8f9fb;
+  border-radius: 10px;
+  flex-shrink: 0;
 }
 
 .transaction-main {
@@ -73,8 +86,8 @@
 .transaction-title {
   font-size: 15px;
   font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 2px;
+  color: #2c3e50;
+  margin-bottom: 4px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -82,20 +95,21 @@
 
 .transaction-meta {
   display: flex;
-  gap: var(--space-sm);
+  gap: 8px;
   flex-wrap: wrap;
-  font-size: 12px;
-  color: var(--text-muted);
+  font-size: 13px;
+  color: #95a5a6;
 }
 
 .no-category {
   font-style: italic;
+  color: #bdc3c7;
 }
 
 .transaction-desc {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-top: var(--space-xs);
+  font-size: 13px;
+  color: #7f8c8d;
+  margin-top: 4px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -109,16 +123,16 @@
 }
 
 .transaction-amount.income {
-  color: var(--success);
+  color: #27ae60;
 }
 
 .transaction-amount.expense {
-  color: var(--error);
+  color: #e74c3c;
 }
 
 .transaction-actions {
   display: flex;
-  gap: var(--space-xs);
+  gap: 6px;
   flex-shrink: 0;
 }
 
@@ -127,28 +141,49 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: var(--space-md);
-  margin-top: var(--space-lg);
-  padding-top: var(--space-lg);
-  border-top: 1px solid var(--border);
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 2px solid #e0e6ed;
 }
 
 .pagination .page-info {
   font-size: 14px;
-  color: var(--text-secondary);
+  color: #7f8c8d;
   font-weight: 600;
   min-width: 80px;
   text-align: center;
 }
 
+.pagination button {
+  padding: 8px 16px;
+  border: 2px solid #e0e6ed;
+  background: #fff;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #34495e;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pagination button:hover:not(:disabled) {
+  border-color: #667eea;
+  color: #667eea;
+}
+
+.pagination button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* ===== TYPE TOGGLE ===== */
 .type-toggle {
   display: flex;
-  gap: var(--space-xs);
+  gap: 8px;
+  background: #f0f3f7;
   padding: 4px;
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 10px;
 }
 
 .type-btn {
@@ -156,33 +191,55 @@
   padding: 10px;
   border: none;
   background: transparent;
-  border-radius: var(--radius-sm);
+  border-radius: 8px;
   font-size: 14px;
   font-weight: 600;
-  font-family: inherit;
-  color: var(--text-secondary);
+  color: #7f8c8d;
   cursor: pointer;
-  transition: all var(--transition);
+  transition: all 0.2s;
+  margin: 0;
+  width: auto;
 }
 
 .type-btn:hover {
-  color: var(--text-primary);
+  color: #34495e;
 }
 
 .type-btn.active[data-type="expense"] {
-  background: var(--error-bg);
-  color: var(--error);
+  background: #fff;
+  color: #e74c3c;
+  box-shadow: 0 2px 8px rgba(231, 76, 60, 0.15);
 }
 
 .type-btn.active[data-type="income"] {
-  background: var(--success-bg);
-  color: var(--success);
+  background: #fff;
+  color: #27ae60;
+  box-shadow: 0 2px 8px rgba(39, 174, 96, 0.15);
 }
 
-/* ===== OPTIONAL LABEL ===== */
+/* ===== TEXTAREA ===== */
+textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid #e0e6ed;
+  border-radius: 8px;
+  font-size: 15px;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+textarea:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+}
+
 .optional {
   font-weight: 400;
-  color: var(--text-muted);
+  color: #95a5a6;
   font-size: 12px;
 }
 
@@ -190,7 +247,7 @@
 @media (max-width: 600px) {
   .transaction-item {
     flex-wrap: wrap;
-    padding: var(--space-md);
+    padding: 12px;
   }
 
   .transaction-main {
@@ -200,11 +257,12 @@
   .transaction-amount {
     flex-basis: 100%;
     text-align: right;
-    margin-top: var(--space-xs);
+    margin-top: 6px;
   }
 
   .filters-panel .toolbar {
     flex-direction: column;
+    align-items: stretch;
   }
 
   .filters-panel input,

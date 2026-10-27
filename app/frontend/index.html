@@ -4,15 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Dashboard — Expense Tracker</title>
-    <link rel="stylesheet" href="css/theme.css" />
-    <link rel="stylesheet" href="css/base.css" />
-    <link rel="stylesheet" href="css/components.css" />
-    <link rel="stylesheet" href="css/layout.css" />
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/categories.css" />
     <link rel="stylesheet" href="css/dashboard.css" />
+
+    <!-- 
+        AUTO-GENERATED FRONTEND
+        This frontend was generated with AI assistance.
+        TODO: Rewrite manually in the future for learning purposes.
+    -->
   </head>
   <body>
     <div class="page-container">
-      <!-- ===== NAV ===== -->
+      <!-- ===== NAVIGATION ===== -->
       <nav class="navbar">
         <div class="nav-links">
           <a href="index.html" class="active">Dashboard</a>
@@ -21,12 +25,11 @@
           <a href="profile.html">Profile</a>
         </div>
         <div class="user-info">
-          <span>👤 <span id="nav-user-name">User</span></span>
-          <button class="btn btn-secondary" id="logout-btn">Logout</button>
+          <span>👤 <span id="user-name">User</span></span>
         </div>
       </nav>
 
-      <!-- ===== HEADER ===== -->
+      <!-- ===== PAGE HEADER ===== -->
       <div class="page-header">
         <h2>Dashboard</h2>
         <div class="period-filter">
@@ -43,10 +46,6 @@
             class="custom-date-input"
             style="display: none"
           />
-          <label class="compare-toggle" id="compare-toggle-wrap">
-            <input type="checkbox" id="compare-toggle" />
-            <span>Compare</span>
-          </label>
         </div>
       </div>
 
@@ -61,6 +60,7 @@
             <div class="summary-value" id="total-balance">—</div>
           </div>
         </div>
+
         <div class="summary-card income">
           <div class="summary-icon">📈</div>
           <div class="summary-info">
@@ -68,6 +68,7 @@
             <div class="summary-value" id="total-income">—</div>
           </div>
         </div>
+
         <div class="summary-card expense">
           <div class="summary-icon">📉</div>
           <div class="summary-info">
@@ -75,6 +76,7 @@
             <div class="summary-value" id="total-expense">—</div>
           </div>
         </div>
+
         <div class="summary-card count">
           <div class="summary-icon">🧾</div>
           <div class="summary-info">
@@ -110,31 +112,12 @@
           <div class="stat-label">Avg / day</div>
           <div class="stat-value" id="period-avg-day">—</div>
         </div>
-        <div class="stat-box forecast">
-          <div class="stat-label">Forecast / month</div>
-          <div class="stat-value" id="forecast-month">—</div>
-        </div>
       </div>
 
-      <!-- ===== TOP CATEGORIES ===== -->
+      <!-- ===== CATEGORIES TOP ===== -->
       <h3 class="section-title">Top categories</h3>
-      <div class="top-categories" id="top-categories"></div>
-
-      <!-- ===== HIGHLIGHTS ===== -->
-      <h3 class="section-title">Highlights</h3>
-      <div class="highlights-grid">
-        <div class="highlight-card">
-          <h4>💎 Biggest expense</h4>
-          <div class="highlight-content" id="max-transaction-content">
-            <span class="highlight-empty">No data</span>
-          </div>
-        </div>
-        <div class="highlight-card">
-          <h4>📅 Most expensive day</h4>
-          <div class="highlight-content" id="most-expensive-day-content">
-            <span class="highlight-empty">No data</span>
-          </div>
-        </div>
+      <div class="top-categories" id="top-categories">
+        <!-- rendered by JS -->
       </div>
 
       <!-- ===== CHARTS ===== -->
@@ -149,20 +132,25 @@
           <canvas id="weekday-chart"></canvas>
         </div>
         <div class="chart-card">
-          <h4>By category</h4>
+          <h4>Expenses by category</h4>
           <canvas id="category-chart"></canvas>
         </div>
       </div>
 
-      <!-- ===== REPEAT ===== -->
+      <!-- ===== REPEATING TRANSACTIONS ===== -->
       <h3 class="section-title">You often buy</h3>
-      <div class="repeat-list" id="repeat-list"></div>
+      <div class="repeat-list" id="repeat-list">
+        <!-- rendered by JS -->
+      </div>
 
-      <!-- ===== RECENT ===== -->
+      <!-- ===== RECENT TRANSACTIONS ===== -->
       <h3 class="section-title">Recent transactions</h3>
-      <div class="recent-list" id="recent-list"></div>
+      <div class="recent-list" id="recent-list">
+        <!-- rendered by JS -->
+      </div>
     </div>
 
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="js/config.js"></script>
     <script src="js/dashboard.js"></script>
