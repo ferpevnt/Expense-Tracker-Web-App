@@ -60,7 +60,8 @@ def TransactionCreate(request: Request, transaction_data: schemas.TransactionCre
     ).outerjoin(
         models.Category, models.Category.id == models.Transaction.category_id
     ).filter(
-        models.Transaction.id == new_transaction.id
+        models.Transaction.id == new_transaction.id,
+        models.Transaction.user_id == user.id
     ).first()
 
     return transaction
@@ -261,6 +262,15 @@ def TransactionsLoad(
     #offset count
     skip = (page - 1) * 15
 
+    total = transactions.count()
+
     transactions = transactions.offset(skip).limit(15).all()
 
-    return transactions
+    pages = (total + 15 - 1) // 15
+
+    return {
+        "items": transactions,
+        "total": total,
+        "page": page,
+        "pages": pages
+    }
