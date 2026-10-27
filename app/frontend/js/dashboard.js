@@ -785,6 +785,7 @@ document.addEventListener("DOMContentLoaded", () => {
         customDateInput.value = new Date().toISOString().slice(0, 10);
       }
       customDate = customDateInput.value;
+      // Для custom — приховуємо toggle compare
       compareWrap.style.display = "none";
       compareEnabled = false;
       compareToggle.checked = false;
