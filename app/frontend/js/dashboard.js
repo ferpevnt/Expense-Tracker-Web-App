@@ -1,6 +1,7 @@
 // ===== STATE =====
 let currentPeriod = "week";
-let customDate = null; // YYYY-MM-DD
+let customDate = null;
+let compareEnabled = false;
 let daysChart = null;
 let weekdayChart = null;
 let categoryChart = null;
@@ -22,6 +23,13 @@ function formatDate(iso) {
   });
 }
 
+function formatDateShort(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+}
+
 function escapeHtml(str) {
   if (str === null || str === undefined) return "";
   return String(str)
@@ -37,35 +45,34 @@ function getDateRange(period, customDateValue) {
   const today = new Date();
   const iso = (d) => d.toISOString().slice(0, 10);
 
-  let start, end;
+  if (period === "today") return { start: iso(today), end: iso(today) };
 
-  if (period === "today") {
-    start = end = iso(today);
-  } else if (period === "yesterday") {
+  if (period === "yesterday") {
     const y = new Date(today);
     y.setDate(y.getDate() - 1);
-    start = end = iso(y);
-  } else if (period === "week") {
-    const monday = new Date(today);
-    const day = (today.getDay() + 6) % 7; // 0=Mon ... 6=Sun
-    monday.setDate(today.getDate() - day);
-    start = iso(monday);
-    end = iso(today);
-  } else if (period === "month") {
-    const first = new Date(today.getFullYear(), today.getMonth(), 1);
-    start = iso(first);
-    end = iso(today);
-  } else if (period === "custom" && customDateValue) {
-    start = end = customDateValue;
-  } else {
-    // fallback
-    start = end = iso(today);
+    return { start: iso(y), end: iso(y) };
   }
 
-  return { start, end };
+  if (period === "week") {
+    const monday = new Date(today);
+    const day = (today.getDay() + 6) % 7;
+    monday.setDate(today.getDate() - day);
+    return { start: iso(monday), end: iso(today) };
+  }
+
+  if (period === "month") {
+    const first = new Date(today.getFullYear(), today.getMonth(), 1);
+    return { start: iso(first), end: iso(today) };
+  }
+
+  if (period === "custom" && customDateValue) {
+    return { start: customDateValue, end: customDateValue };
+  }
+
+  return { start: iso(today), end: iso(today) };
 }
 
-// ===== PREVIOUS PERIOD (для порівняння) =====
+// ===== PREVIOUS PERIOD =====
 function getPreviousRange(period, start, end) {
   const startDate = new Date(start);
   const endDate = new Date(end);
@@ -74,37 +81,21 @@ function getPreviousRange(period, start, end) {
     Math.round((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1,
   );
 
-  let prevEnd, prevStart;
+  let prevStart, prevEnd;
 
-  if (period === "today") {
-    prevEnd = prevStart = new Date(startDate);
-    prevEnd.setDate(prevEnd.getDate() - 1);
-    prevStart = new Date(prevEnd);
-  } else if (period === "yesterday") {
-    prevEnd = prevStart = new Date(startDate);
-    prevEnd.setDate(prevEnd.getDate() - 1);
-    prevStart = new Date(prevEnd);
+  if (period === "today" || period === "yesterday") {
+    const d = new Date(startDate);
+    d.setDate(d.getDate() - 1);
+    prevStart = prevEnd = d;
   } else if (period === "week") {
     prevEnd = new Date(startDate);
     prevEnd.setDate(prevEnd.getDate() - 1);
     prevStart = new Date(prevEnd);
     prevStart.setDate(prevStart.getDate() - (daysDiff - 1));
   } else if (period === "month") {
-    const firstThisMonth = new Date(startDate);
-    const firstPrevMonth = new Date(
-      firstThisMonth.getFullYear(),
-      firstThisMonth.getMonth() - 1,
-      1,
-    );
-    const lastPrevMonth = new Date(
-      firstThisMonth.getFullYear(),
-      firstThisMonth.getMonth(),
-      0,
-    );
-    prevStart = firstPrevMonth;
-    prevEnd = lastPrevMonth;
+    prevStart = new Date(startDate.getFullYear(), startDate.getMonth() - 1, 1);
+    prevEnd = new Date(startDate.getFullYear(), startDate.getMonth(), 0);
   } else {
-    // custom — попередній такого ж розміру
     prevEnd = new Date(startDate);
     prevEnd.setDate(prevEnd.getDate() - 1);
     prevStart = new Date(prevEnd);
@@ -119,134 +110,75 @@ function getPreviousRange(period, start, end) {
 
 // ===== LOAD TOTAL =====
 async function loadTotal() {
-  const { response, data } = await apiRequest("/dashboard/total");
-
-  if (response.status === 200) {
-    document.getElementById("total-balance").textContent = formatMoney(
-      data.balance,
-    );
-    document.getElementById("total-income").textContent = formatMoney(
-      data.total_income,
-    );
-    document.getElementById("total-expense").textContent = formatMoney(
-      data.total_expense,
-    );
-    document.getElementById("total-count").textContent = data.total_transaction;
-  } else if (response.status === 401) {
-    clearToken();
-    window.location.href = "login.html";
-  } else {
+  try {
+    const { response, data } = await apiRequest("/dashboard/total");
+    if (response.status === 200) {
+      document.getElementById("total-balance").textContent = formatMoney(
+        data.balance,
+      );
+      document.getElementById("total-income").textContent = formatMoney(
+        data.total_income,
+      );
+      document.getElementById("total-expense").textContent = formatMoney(
+        data.total_expense,
+      );
+      document.getElementById("total-count").textContent =
+        data.total_transaction;
+    } else if (response.status === 401) {
+      clearToken();
+      window.location.href = "login.html";
+    }
+  } catch (error) {
     showMessage("message", "Failed to load totals", "error");
   }
 }
 
-// ===== LOAD FINANCES (period) =====
+// ===== LOAD FINANCES =====
 async function loadFinances() {
   const params = new URLSearchParams();
   params.append("filtering", currentPeriod);
-
   if (currentPeriod === "custom" && customDate) {
-    // бекенд хоче filtering=date + target_date
     params.set("filtering", "date");
     params.append("target_date", customDate);
   }
 
-  const { response, data } = await apiRequest(
-    `/dashboard/finances?${params.toString()}`,
-  );
-
-  if (response.status === 200) {
-    const info = data.expenses_info;
-    document.getElementById("period-total").textContent = formatMoney(
-      info.transaction_whole_summ,
-    );
-    document.getElementById("period-avg").textContent = formatMoney(
-      info.avg_summ,
-    );
-    document.getElementById("period-max").textContent = formatMoney(
-      info.max_summ,
-    );
-    document.getElementById("period-count").textContent =
-      info.transaction_amount;
-    document.getElementById("period-avg-day").textContent = formatMoney(
-      info.avg_per_day,
+  try {
+    const { response, data } = await apiRequest(
+      `/dashboard/finances?${params.toString()}`,
     );
 
-    renderTopCategories(data.categories_top_3 || []);
-    renderCategoryChart(data.categories_expense_percent || []);
-  } else if (response.status === 401) {
-    clearToken();
-    window.location.href = "login.html";
-  } else if (response.status === 400) {
-    showMessage("message", data?.detail || "Wrong filter", "error");
-  } else {
+    if (response.status === 200) {
+      const info = data.expenses_info;
+      document.getElementById("period-total").textContent = formatMoney(
+        info.transaction_whole_sum,
+      );
+      document.getElementById("period-avg").textContent = formatMoney(
+        info.avg_sum,
+      );
+      document.getElementById("period-max").textContent = formatMoney(
+        info.max_sum,
+      );
+      document.getElementById("period-count").textContent =
+        info.transaction_amount;
+      document.getElementById("period-avg-day").textContent = formatMoney(
+        info.avg_per_day,
+      );
+      document.getElementById("forecast-month").textContent = formatMoney(
+        data.forecast_month,
+      );
+
+      renderTopCategories(data.categories_top_3 || []);
+      renderCategoryChart(data.categories_expense_percent || []);
+      renderHighlights(data.max_transaction, data.most_expensive_day);
+    } else if (response.status === 401) {
+      clearToken();
+      window.location.href = "login.html";
+    } else if (response.status === 400) {
+      showMessage("message", data?.detail || "Wrong filter", "error");
+    }
+  } catch (error) {
     showMessage("message", "Failed to load statistics", "error");
   }
-}
-
-// ===== LOAD COMPARE (порівняння з попереднім періодом) =====
-async function loadCompare() {
-  const badge = document.getElementById("period-compare");
-
-  if (currentPeriod === "custom") {
-    badge.classList.remove("show");
-    return;
-  }
-
-  const { start, end } = getDateRange(currentPeriod);
-  const prev = getPreviousRange(currentPeriod, start, end);
-
-  // поточний
-  const paramsCurrent = new URLSearchParams({
-    filtering: currentPeriod,
-  });
-
-  // попередній — використовуємо filtering=date + target_date
-  // але нам треба діапазон, тому викликаємо /graphs для обох
-  const graphParams = new URLSearchParams({
-    date_start: start,
-    date_end: end,
-    previous_date_start: prev.start,
-    previous_date_end: prev.end,
-  });
-
-  const { response, data } = await apiRequest(
-    `/dashboard/graphs?${graphParams.toString()}`,
-  );
-
-  if (response.status !== 200) {
-    badge.classList.remove("show");
-    return;
-  }
-
-  // рахуємо суми з days
-  const sumCurrent = (data.current?.days || []).reduce(
-    (acc, d) => acc + (parseFloat(d.day_expenses) || 0),
-    0,
-  );
-  const sumPrev = (data.previous?.days || []).reduce(
-    (acc, d) => acc + (parseFloat(d.day_expenses) || 0),
-    0,
-  );
-
-  if (sumPrev === 0 && sumCurrent === 0) {
-    badge.classList.remove("show");
-    return;
-  }
-
-  if (sumPrev === 0) {
-    badge.textContent = "no data to compare";
-    badge.className = "period-compare show neutral";
-    return;
-  }
-
-  const diff = ((sumCurrent - sumPrev) / sumPrev) * 100;
-  const arrow = diff > 0 ? "↑" : diff < 0 ? "↓" : "→";
-  const sign = diff > 0 ? "+" : "";
-
-  badge.textContent = `${arrow} ${sign}${diff.toFixed(1)}% vs previous`;
-  badge.className =
-    "period-compare show " + (diff > 0 ? "up" : diff < 0 ? "down" : "neutral");
 }
 
 // ===== RENDER TOP CATEGORIES =====
@@ -258,7 +190,7 @@ function renderTopCategories(cats) {
     wrap.innerHTML = `
       <div class="empty-state" style="grid-column: 1 / -1; padding: 30px;">
         <div class="emoji">📊</div>
-        <h3>No expenses yet</h3>
+        <h3>No expenses</h3>
         <p>Add transactions to see top categories</p>
       </div>
     `;
@@ -284,91 +216,178 @@ function renderTopCategories(cats) {
   });
 }
 
-// ===== LOAD RECENT TRANSACTIONS =====
+// ===== RENDER HIGHLIGHTS =====
+function renderHighlights(maxTx, mostExpensiveDay) {
+  const maxWrap = document.getElementById("max-transaction-content");
+  if (maxTx) {
+    maxWrap.innerHTML = `
+      <div class="highlight-title">${escapeHtml(maxTx.title)}</div>
+      <div class="highlight-meta">
+        ${maxTx.category ? `${maxTx.emoji || "📁"} ${escapeHtml(maxTx.category)}` : "No category"}
+      </div>
+      <div class="highlight-value">−${formatMoney(maxTx.summ)}</div>
+      ${maxTx.description ? `<div class="highlight-date">${escapeHtml(maxTx.description)}</div>` : ""}
+    `;
+  } else {
+    maxWrap.innerHTML = '<span class="highlight-empty">No data</span>';
+  }
+
+  const dayWrap = document.getElementById("most-expensive-day-content");
+  if (mostExpensiveDay) {
+    dayWrap.innerHTML = `
+      <div class="highlight-title">${formatDate(mostExpensiveDay.date)}</div>
+      <div class="highlight-value">−${formatMoney(mostExpensiveDay.total)}</div>
+    `;
+  } else {
+    dayWrap.innerHTML = '<span class="highlight-empty">No data</span>';
+  }
+}
+
+// ===== LOAD RECENT =====
 async function loadRecent() {
-  const { response, data } = await apiRequest("/dashboard/transactions");
-
-  if (response.status !== 200) {
-    if (response.status === 401) {
-      clearToken();
-      window.location.href = "login.html";
+  try {
+    const { response, data } = await apiRequest("/dashboard/transactions");
+    if (response.status !== 200) {
+      if (response.status === 401) {
+        clearToken();
+        window.location.href = "login.html";
+      }
+      return;
     }
-    return;
-  }
 
-  const list = document.getElementById("recent-list");
-  list.innerHTML = "";
+    const list = document.getElementById("recent-list");
+    list.innerHTML = "";
 
-  if (!data.length) {
-    list.innerHTML = `
-      <div class="empty-state">
-        <div class="emoji">📭</div>
-        <h3>No transactions yet</h3>
-        <p>Add your first transaction to see it here</p>
-      </div>
-    `;
-    return;
-  }
-
-  data.forEach((t) => {
-    const isIncome = !!t.transaction_type;
-    const sign = isIncome ? "+" : "−";
-    const item = document.createElement("div");
-    item.className = "recent-item";
-    item.innerHTML = `
-      <div class="recent-emoji">${t.emoji || (isIncome ? "💰" : "💸")}</div>
-      <div class="recent-main">
-        <div class="recent-title">${escapeHtml(t.title)}</div>
-        <div class="recent-meta">
-          ${t.category ? escapeHtml(t.category) + " • " : ""}
-          ${formatDate(t.created_date)}
+    if (!data.length) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <div class="emoji">📭</div>
+          <h3>No transactions yet</h3>
+          <p>Add your first transaction</p>
         </div>
-      </div>
-      <div class="recent-amount ${isIncome ? "income" : "expense"}">
-        ${sign}${formatMoney(t.summ)}
-      </div>
-    `;
-    list.appendChild(item);
-  });
+      `;
+      return;
+    }
+
+    data.forEach((t) => {
+      const isIncome = !!t.transaction_type;
+      const sign = isIncome ? "+" : "−";
+      const item = document.createElement("div");
+      item.className = "recent-item";
+      item.innerHTML = `
+        <div class="recent-emoji">${t.emoji || (isIncome ? "💰" : "💸")}</div>
+        <div class="recent-main">
+          <div class="recent-title">${escapeHtml(t.title)}</div>
+          <div class="recent-meta">
+            ${t.category ? escapeHtml(t.category) + " • " : ""}
+            ${formatDate(t.created_date)}
+          </div>
+        </div>
+        <div class="recent-amount ${isIncome ? "income" : "expense"}">
+          ${sign}${formatMoney(t.summ)}
+        </div>
+      `;
+      list.appendChild(item);
+    });
+  } catch (error) {
+    console.error(error);
+  }
 }
 
 // ===== LOAD GRAPHS =====
 async function loadGraphs() {
   const { start, end } = getDateRange(currentPeriod, customDate);
-  const params = new URLSearchParams();
-  params.append("date_start", start);
-  params.append("date_end", end);
+  const params = new URLSearchParams({ date_start: start, date_end: end });
 
-  const { response, data } = await apiRequest(
-    `/dashboard/graphs?${params.toString()}`,
-  );
+  let previousRange = null;
+  if (compareEnabled && currentPeriod !== "custom") {
+    previousRange = getPreviousRange(currentPeriod, start, end);
+    params.append("previous_date_start", previousRange.start);
+    params.append("previous_date_end", previousRange.end);
+  }
 
-  if (response.status === 200) {
-    renderDaysChart(data.current?.days || []);
-    renderWeekdayChart(data.current?.week_days || []);
-    renderRepeatList(data.current?.repeat_transactions || []);
-  } else if (response.status === 401) {
-    clearToken();
-    window.location.href = "login.html";
-  } else if (response.status === 400) {
-    showMessage("message", data?.detail || "Wrong date range", "error");
-  } else {
+  try {
+    const { response, data } = await apiRequest(
+      `/dashboard/graphs?${params.toString()}`,
+    );
+
+    if (response.status === 200) {
+      const current = data.current || {
+        days: [],
+        week_days: [],
+        repeat_transactions: [],
+      };
+      const previous = data.previous || null;
+
+      renderDaysChart(current.days || [], previous?.days || null, !!previous);
+      renderWeekdayChart(
+        current.week_days || [],
+        previous?.week_days || null,
+        !!previous,
+      );
+      renderRepeatList(current.repeat_transactions || []);
+      renderCompareBadge(current, previous);
+    } else if (response.status === 401) {
+      clearToken();
+      window.location.href = "login.html";
+    } else if (response.status === 400) {
+      showMessage("message", data?.detail || "Wrong date range", "error");
+    }
+  } catch (error) {
     showMessage("message", "Failed to load charts", "error");
   }
 }
 
-// ===== CHART: DAYS =====
-function renderDaysChart(days) {
-  const ctx = document.getElementById("days-chart").getContext("2d");
+// ===== COMPARE BADGE =====
+function renderCompareBadge(current, previous) {
+  const badge = document.getElementById("period-compare");
 
+  if (!previous) {
+    badge.classList.remove("show");
+    return;
+  }
+
+  const sum = (arr) =>
+    (arr || []).reduce((acc, d) => acc + (parseFloat(d.day_expenses) || 0), 0);
+
+  const sumCurrent = sum(current?.days);
+  const sumPrev = sum(previous?.days);
+
+  if (sumPrev === 0 && sumCurrent === 0) {
+    badge.classList.remove("show");
+    return;
+  }
+
+  if (sumPrev === 0) {
+    badge.textContent = "no data to compare";
+    badge.className = "period-compare show neutral";
+    return;
+  }
+
+  const diff = ((sumCurrent - sumPrev) / sumPrev) * 100;
+  const arrow = diff > 0 ? "↑" : diff < 0 ? "↓" : "→";
+  const sign = diff > 0 ? "+" : "";
+
+  badge.textContent = `${arrow} ${sign}${diff.toFixed(1)}% vs previous`;
+  badge.className =
+    "period-compare show " + (diff > 0 ? "up" : diff < 0 ? "down" : "neutral");
+}
+
+// ===== CHART: DAYS =====
+function renderDaysChart(currentDays, previousDays, showCompare) {
+  const ctx = document.getElementById("days-chart").getContext("2d");
   if (daysChart) daysChart.destroy();
 
-  if (!days.length) {
+  const hasData =
+    (currentDays && currentDays.length > 0) ||
+    (showCompare && previousDays && previousDays.length > 0);
+
+  if (!hasData) {
     daysChart = new Chart(ctx, {
       type: "bar",
       data: {
         labels: ["No data"],
-        datasets: [{ data: [0], backgroundColor: "#e0e6ed" }],
+        datasets: [{ data: [0], backgroundColor: "rgba(139,92,246,0.2)" }],
       },
       options: {
         responsive: true,
@@ -379,60 +398,97 @@ function renderDaysChart(days) {
     return;
   }
 
-  // групуємо по днях (на випадок timestamp)
-  const map = new Map();
-  days.forEach((d) => {
-    const key = formatDate(d.created_date);
-    const val = parseFloat(d.day_expenses) || 0;
-    map.set(key, (map.get(key) || 0) + val);
-  });
+  // Збираємо всі унікальні дати (current + previous)
+  const allLabels = new Set();
+  currentDays?.forEach((d) => allLabels.add(d.created_date));
+  if (showCompare) previousDays?.forEach((d) => allLabels.add(d.created_date));
 
-  const labels = Array.from(map.keys());
-  const values = Array.from(map.values());
+  const sortedDates = [...allLabels].sort((a, b) => new Date(a) - new Date(b));
+
+  // Якщо compare вимкнено — тільки current
+  let labels, datasets;
+
+  if (showCompare) {
+    // Для порівняння: вирівнюємо по індексу (день 1, день 2, ...)
+    // Беремо довжину більшого масиву
+    const maxLen = Math.max(
+      currentDays?.length || 0,
+      previousDays?.length || 0,
+    );
+    labels = Array.from({ length: maxLen }, (_, i) => `Day ${i + 1}`);
+
+    const currentValues = [];
+    const previousValues = [];
+    for (let i = 0; i < maxLen; i++) {
+      currentValues.push(parseFloat(currentDays?.[i]?.day_expenses) || null);
+      previousValues.push(parseFloat(previousDays?.[i]?.day_expenses) || null);
+    }
+
+    datasets = [
+      {
+        label: "Current period",
+        data: currentValues,
+        backgroundColor: "rgba(139, 92, 246, 0.7)",
+        borderColor: "#8b5cf6",
+        borderWidth: 2,
+        borderRadius: 6,
+      },
+      {
+        label: "Previous period",
+        data: previousValues,
+        backgroundColor: "rgba(6, 182, 212, 0.4)",
+        borderColor: "#06b6d4",
+        borderWidth: 2,
+        borderRadius: 6,
+      },
+    ];
+  } else {
+    // Без compare: звичайний графік по датах
+    labels = currentDays.map((d) => formatDateShort(d.created_date));
+    const values = currentDays.map((d) => parseFloat(d.day_expenses) || 0);
+
+    datasets = [
+      {
+        label: "Expenses",
+        data: values,
+        backgroundColor: "rgba(139, 92, 246, 0.7)",
+        borderColor: "#8b5cf6",
+        borderWidth: 2,
+        borderRadius: 6,
+      },
+    ];
+  }
 
   daysChart = new Chart(ctx, {
     type: "bar",
-    data: {
-      labels,
-      datasets: [
-        {
-          label: "Expenses",
-          data: values,
-          backgroundColor: "rgba(102, 126, 234, 0.7)",
-          borderColor: "#667eea",
-          borderWidth: 2,
-          borderRadius: 6,
-        },
-      ],
-    },
+    data: { labels, datasets },
     options: {
       responsive: true,
-      plugins: { legend: { display: false } },
+      plugins: {
+        legend: {
+          display: showCompare,
+          labels: { color: "#e2e8f0", padding: 12 },
+        },
+      },
       scales: {
-        y: { beginAtZero: true, ticks: { color: "#7f8c8d" } },
-        x: { ticks: { color: "#7f8c8d" } },
+        y: {
+          beginAtZero: true,
+          ticks: { color: "#94a3b8" },
+          grid: { color: "rgba(139,92,246,0.1)" },
+        },
+        x: {
+          ticks: { color: "#94a3b8" },
+          grid: { display: false },
+        },
       },
     },
   });
 }
 
 // ===== CHART: WEEKDAYS =====
-function renderWeekdayChart(weekdays) {
+function renderWeekdayChart(currentWeekdays, previousWeekdays, showCompare) {
   const ctx = document.getElementById("weekday-chart").getContext("2d");
-
   if (weekdayChart) weekdayChart.destroy();
-
-  if (!weekdays.length) {
-    weekdayChart = new Chart(ctx, {
-      type: "doughnut",
-      data: {
-        labels: ["No data"],
-        datasets: [{ data: [1], backgroundColor: ["#e0e6ed"] }],
-      },
-      options: { responsive: true, plugins: { legend: { display: false } } },
-    });
-    return;
-  }
 
   const order = [
     "Monday",
@@ -444,58 +500,134 @@ function renderWeekdayChart(weekdays) {
     "Sunday",
   ];
 
-  const map = new Map();
-  weekdays.forEach((d) => {
+  const mapCurrent = new Map();
+  const mapPrevious = new Map();
+
+  currentWeekdays?.forEach((d) => {
     const key = (d.week_day || "").trim();
     const val = parseFloat(d.weekday_expenses) || 0;
-    map.set(key, (map.get(key) || 0) + val);
+    mapCurrent.set(key, (mapCurrent.get(key) || 0) + val);
   });
 
-  const labels = order.filter((d) => map.has(d));
-  const values = labels.map((d) => map.get(d));
+  if (showCompare) {
+    previousWeekdays?.forEach((d) => {
+      const key = (d.week_day || "").trim();
+      const val = parseFloat(d.weekday_expenses) || 0;
+      mapPrevious.set(key, (mapPrevious.get(key) || 0) + val);
+    });
+  }
 
-  const palette = [
-    "#667eea",
-    "#764ba2",
-    "#27ae60",
-    "#e74c3c",
-    "#f39c12",
-    "#3498db",
-    "#9b59b6",
-  ];
+  const labels = order.filter((d) => mapCurrent.has(d) || mapPrevious.has(d));
 
-  weekdayChart = new Chart(ctx, {
-    type: "doughnut",
-    data: {
-      labels,
-      datasets: [
-        {
-          data: values,
-          backgroundColor: labels.map((_, i) => palette[i % palette.length]),
-          borderWidth: 2,
-          borderColor: "#fff",
+  if (!labels.length) {
+    weekdayChart = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: ["No data"],
+        datasets: [{ data: [0], backgroundColor: "rgba(139,92,246,0.2)" }],
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true } },
+      },
+    });
+    return;
+  }
+
+  const currentValues = labels.map((d) => mapCurrent.get(d) || 0);
+
+  if (showCompare) {
+    const previousValues = labels.map((d) => mapPrevious.get(d) || 0);
+
+    weekdayChart = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Current",
+            data: currentValues,
+            backgroundColor: "rgba(139, 92, 246, 0.7)",
+            borderColor: "#8b5cf6",
+            borderWidth: 2,
+            borderRadius: 6,
+          },
+          {
+            label: "Previous",
+            data: previousValues,
+            backgroundColor: "rgba(6, 182, 212, 0.4)",
+            borderColor: "#06b6d4",
+            borderWidth: 2,
+            borderRadius: 6,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            display: true,
+            position: "bottom",
+            labels: { color: "#e2e8f0", padding: 12, boxWidth: 12 },
+          },
         },
-      ],
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: {
-          position: "bottom",
-          labels: { color: "#34495e", padding: 12 },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { color: "#94a3b8" },
+            grid: { color: "rgba(139,92,246,0.1)" },
+          },
+          x: {
+            ticks: { color: "#94a3b8" },
+            grid: { display: false },
+          },
         },
       },
-    },
-  });
+    });
+  } else {
+    // Без compare — doughnut як раніше
+    const palette = [
+      "#8b5cf6",
+      "#a78bfa",
+      "#06b6d4",
+      "#22d3ee",
+      "#10b981",
+      "#f59e0b",
+      "#f43f5e",
+    ];
+
+    weekdayChart = new Chart(ctx, {
+      type: "doughnut",
+      data: {
+        labels,
+        datasets: [
+          {
+            data: currentValues,
+            backgroundColor: labels.map((_, i) => palette[i % palette.length]),
+            borderWidth: 2,
+            borderColor: "#1a0f2e",
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            position: "bottom",
+            labels: { color: "#e2e8f0", padding: 12, boxWidth: 12 },
+          },
+        },
+      },
+    });
+  }
 }
 
-// ===== CHART: CATEGORIES (Doughnut) =====
+// ===== CHART: CATEGORY =====
 function renderCategoryChart(categories) {
   const ctx = document.getElementById("category-chart").getContext("2d");
-
   if (categoryChart) categoryChart.destroy();
 
-  // фільтруємо ті, де total > 0 (інакше шум)
   const filtered = (categories || []).filter(
     (c) => (parseFloat(c.total) || 0) > 0,
   );
@@ -505,7 +637,7 @@ function renderCategoryChart(categories) {
       type: "doughnut",
       data: {
         labels: ["No data"],
-        datasets: [{ data: [1], backgroundColor: ["#e0e6ed"] }],
+        datasets: [{ data: [1], backgroundColor: ["rgba(139,92,246,0.2)"] }],
       },
       options: { responsive: true, plugins: { legend: { display: false } } },
     });
@@ -518,18 +650,17 @@ function renderCategoryChart(categories) {
 
   const labels = filtered.map((c) => c.category || "No category");
   const values = filtered.map((c) => parseFloat(c.total) || 0);
-
   const palette = [
-    "#667eea",
-    "#764ba2",
-    "#27ae60",
-    "#e74c3c",
-    "#f39c12",
-    "#3498db",
-    "#9b59b6",
-    "#1abc9c",
-    "#e67e22",
-    "#95a5a6",
+    "#8b5cf6",
+    "#a78bfa",
+    "#06b6d4",
+    "#22d3ee",
+    "#10b981",
+    "#f59e0b",
+    "#f43f5e",
+    "#ec4899",
+    "#84cc16",
+    "#64748b",
   ];
 
   categoryChart = new Chart(ctx, {
@@ -541,7 +672,7 @@ function renderCategoryChart(categories) {
           data: values,
           backgroundColor: labels.map((_, i) => palette[i % palette.length]),
           borderWidth: 2,
-          borderColor: "#fff",
+          borderColor: "#1a0f2e",
         },
       ],
     },
@@ -550,7 +681,7 @@ function renderCategoryChart(categories) {
       plugins: {
         legend: {
           position: "bottom",
-          labels: { color: "#34495e", padding: 12, boxWidth: 12 },
+          labels: { color: "#e2e8f0", padding: 12, boxWidth: 12 },
         },
         tooltip: {
           callbacks: {
@@ -567,7 +698,7 @@ function renderCategoryChart(categories) {
   });
 }
 
-// ===== RENDER REPEATING TRANSACTIONS =====
+// ===== REPEAT LIST =====
 function renderRepeatList(repeats) {
   const wrap = document.getElementById("repeat-list");
   wrap.innerHTML = "";
@@ -576,8 +707,8 @@ function renderRepeatList(repeats) {
     wrap.innerHTML = `
       <div class="empty-state" style="grid-column: 1 / -1; padding: 30px;">
         <div class="emoji">🔁</div>
-        <h3>No repeating expenses yet</h3>
-        <p>Titles you buy 4+ times in the period will appear here</p>
+        <h3>No repeating expenses</h3>
+        <p>Titles bought 4+ times will appear here</p>
       </div>
     `;
     return;
@@ -585,9 +716,8 @@ function renderRepeatList(repeats) {
 
   const map = new Map();
   repeats.forEach((r) => {
-    const key = r.title;
-    if (!map.has(key)) {
-      map.set(key, {
+    if (!map.has(r.title)) {
+      map.set(r.title, {
         title: r.title,
         category: r.category,
         emoji: r.emoji,
@@ -595,12 +725,12 @@ function renderRepeatList(repeats) {
         count: 0,
       });
     }
-    const entry = map.get(key);
-    entry.total += parseFloat(r.summ) || 0;
-    entry.count += 1;
+    const e = map.get(r.title);
+    e.total += parseFloat(r.summ) || 0;
+    e.count += 1;
   });
 
-  const items = Array.from(map.values()).sort((a, b) => b.count - a.count);
+  const items = [...map.values()].sort((a, b) => b.count - a.count);
 
   items.forEach((r) => {
     const card = document.createElement("div");
@@ -622,13 +752,13 @@ function renderRepeatList(repeats) {
 // ===== RELOAD ALL =====
 async function reloadAll() {
   hideMessage("message");
-  await Promise.all([
-    loadTotal(),
-    loadFinances(),
-    loadRecent(),
-    loadGraphs(),
-    loadCompare(),
-  ]);
+  await Promise.all([loadTotal(), loadFinances(), loadRecent(), loadGraphs()]);
+}
+
+// ===== LOGOUT =====
+function handleLogout() {
+  clearToken();
+  window.location.href = "login.html";
 }
 
 // ===== INIT =====
@@ -638,11 +768,13 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   }
 
-  document.getElementById("user-name").textContent =
+  document.getElementById("nav-user-name").textContent =
     localStorage.getItem("user_name") || "User";
 
   const periodSelect = document.getElementById("period-select");
   const customDateInput = document.getElementById("custom-date");
+  const compareToggle = document.getElementById("compare-toggle");
+  const compareWrap = document.getElementById("compare-toggle-wrap");
 
   periodSelect.addEventListener("change", (e) => {
     currentPeriod = e.target.value;
@@ -653,9 +785,13 @@ document.addEventListener("DOMContentLoaded", () => {
         customDateInput.value = new Date().toISOString().slice(0, 10);
       }
       customDate = customDateInput.value;
+      compareWrap.style.display = "none";
+      compareEnabled = false;
+      compareToggle.checked = false;
     } else {
       customDateInput.style.display = "none";
       customDate = null;
+      compareWrap.style.display = "inline-flex";
     }
 
     reloadAll();
@@ -665,6 +801,13 @@ document.addEventListener("DOMContentLoaded", () => {
     customDate = e.target.value;
     if (customDate) reloadAll();
   });
+
+  compareToggle.addEventListener("change", (e) => {
+    compareEnabled = e.target.checked;
+    reloadAll();
+  });
+
+  document.getElementById("logout-btn").addEventListener("click", handleLogout);
 
   reloadAll();
 });
