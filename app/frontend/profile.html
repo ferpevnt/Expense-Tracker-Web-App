@@ -4,19 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Profile — Expense Tracker</title>
-    <link rel="stylesheet" href="css/style.css" />
-    <link rel="stylesheet" href="css/categories.css" />
+    <link rel="stylesheet" href="css/theme.css" />
+    <link rel="stylesheet" href="css/base.css" />
+    <link rel="stylesheet" href="css/components.css" />
+    <link rel="stylesheet" href="css/layout.css" />
     <link rel="stylesheet" href="css/profile.css" />
-
-    <!-- 
-        AUTO-GENERATED FRONTEND
-        This frontend was generated with AI assistance.
-        TODO: Rewrite manually in the future for learning purposes.
-    -->
   </head>
   <body>
     <div class="page-container">
-      <!-- ===== NAVIGATION ===== -->
+      <!-- ===== NAV ===== -->
       <nav class="navbar">
         <div class="nav-links">
           <a href="index.html">Dashboard</a>
@@ -25,11 +21,12 @@
           <a href="profile.html" class="active">Profile</a>
         </div>
         <div class="user-info">
-          <span>👤 <span id="user-name">User</span></span>
+          <span>👤 <span id="nav-user-name">User</span></span>
+          <button class="btn btn-secondary" id="logout-btn">Logout</button>
         </div>
       </nav>
 
-      <!-- ===== PAGE HEADER ===== -->
+      <!-- ===== HEADER ===== -->
       <div class="page-header">
         <h2>Profile</h2>
       </div>
@@ -39,20 +36,19 @@
       <!-- ===== PROFILE CARDS ===== -->
       <div class="profile-grid">
         <!-- Account info -->
-        <div class="profile-card">
-          <div class="profile-card-header">
-            <div class="profile-avatar">👤</div>
-            <div>
-              <h3 id="display-name">User</h3>
-              <p id="display-email" class="profile-email">—</p>
-            </div>
+        <div class="profile-card account-card">
+          <div class="profile-avatar">👤</div>
+          <div class="profile-info">
+            <h3 id="display-name">—</h3>
+            <p id="display-email" class="profile-email">—</p>
           </div>
         </div>
 
-        <!-- Update name -->
+        <!-- Change name -->
         <div class="profile-card">
           <h3>Change Name</h3>
           <p class="profile-card-desc">Update your display name</p>
+
           <div id="name-message" class="message"></div>
 
           <div class="form-group">
@@ -63,18 +59,20 @@
               placeholder="Your name"
               minlength="2"
               maxlength="50"
+              autocomplete="name"
             />
           </div>
 
           <button class="btn btn-primary" id="save-name-btn">Save Name</button>
         </div>
 
-        <!-- Update password -->
+        <!-- Change password -->
         <div class="profile-card">
           <h3>Change Password</h3>
           <p class="profile-card-desc">
             Choose a strong password (8–56 characters)
           </p>
+
           <div id="password-message" class="message"></div>
 
           <div class="form-group">
@@ -83,6 +81,7 @@
               type="password"
               id="current-password"
               placeholder="Your current password"
+              autocomplete="current-password"
             />
           </div>
 
@@ -94,6 +93,7 @@
               placeholder="At least 8 characters"
               minlength="8"
               maxlength="56"
+              autocomplete="new-password"
             />
           </div>
 
@@ -103,6 +103,7 @@
               type="password"
               id="confirm-new-password"
               placeholder="Repeat new password"
+              autocomplete="new-password"
             />
           </div>
 
@@ -112,12 +113,13 @@
         </div>
 
         <!-- Danger zone -->
-        <div class="profile-card danger-zone">
+        <div class="profile-card danger-card">
           <h3>⚠️ Danger Zone</h3>
           <p class="profile-card-desc">
-            Deleting your account will remove all your transactions and
-            categories. This action <strong>cannot be undone</strong>.
+            Deleting your account will permanently remove all your transactions
+            and categories. <strong>This action cannot be undone.</strong>
           </p>
+
           <button class="btn btn-danger" id="delete-account-btn">
             Delete Account
           </button>

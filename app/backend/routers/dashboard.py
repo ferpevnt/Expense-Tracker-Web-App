@@ -95,8 +95,6 @@ def FinancesStatistics(
 
     cache_key = f"dashboard:finances:{user_id}:{filtering}:{target_date}"
 
-    cached = redis.client.get(cache_key)
-
     try:
         cached = redis_client.get(cache_key)
         if cached:
@@ -271,7 +269,7 @@ def GraphsData(
     cache_key = f"dashboard:graphs:{user_id}:{date_start}:{date_end}:{previous_date_start}:{previous_date_end}"
 
     try:
-        cached = redis.client.get(cache_key)
+        cached = redis_client.get(cache_key)
         if cached:
             return json.loads(cached)
     except Exception:

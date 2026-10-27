@@ -4,19 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sign Up — Expense Tracker</title>
-    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/theme.css" />
+    <link rel="stylesheet" href="css/base.css" />
+    <link rel="stylesheet" href="css/components.css" />
     <link rel="stylesheet" href="css/auth.css" />
-
-    <!-- 
-        AUTO-GENERATED FRONTEND
-        This frontend was generated with AI assistance.
-        TODO: Rewrite manually in the future for learning purposes.
-    -->
   </head>
   <body>
-    <div class="container">
+    <div class="auth-container">
+      <div class="auth-logo">✨</div>
       <h1>Create Account</h1>
-      <p class="subtitle">Start tracking your expenses today</p>
+      <p class="auth-subtitle">Start tracking your expenses today</p>
 
       <div id="message" class="message"></div>
 
@@ -30,6 +27,7 @@
             placeholder="Your name"
             minlength="2"
             maxlength="50"
+            autocomplete="name"
             required
           />
         </div>
@@ -41,6 +39,7 @@
             id="email"
             name="email"
             placeholder="you@example.com"
+            autocomplete="email"
             required
           />
         </div>
@@ -54,6 +53,7 @@
             placeholder="At least 8 characters"
             minlength="8"
             maxlength="56"
+            autocomplete="new-password"
             required
           />
           <div class="password-hint">8–56 characters</div>
@@ -66,14 +66,17 @@
             id="confirm_password"
             name="confirm_password"
             placeholder="Repeat password"
+            autocomplete="new-password"
             required
           />
         </div>
 
-        <button type="submit" id="submit-btn">Sign Up</button>
+        <button type="submit" id="submit-btn" class="btn btn-primary btn-block">
+          Sign Up
+        </button>
       </form>
 
-      <div class="link">
+      <div class="auth-link">
         Already have an account? <a href="login.html">Log in</a>
       </div>
     </div>
